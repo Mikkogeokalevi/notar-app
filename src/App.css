@@ -221,69 +221,44 @@ input[type="color"] { height: 45px; padding: 2px; cursor: pointer; }
   box-shadow: 0 4px 10px rgba(0,0,0,0.3);
 }
 
-/* TIETOKONEELLA: Vasen reuna (Sää) */
+/* 1. VASEN REUNA: Sää ja Sijainti */
 .info-left {
   display: flex;
   align-items: center;
   gap: 15px;
   flex: 1; 
   justify-content: flex-start;
+  order: 1; /* Pakotetaan ensimmäiseksi vasemmalle */
 }
 
-/* TIETOKONEELLA: Keskikohta (Napit) */
+/* 2. KESKIKOHTA: Navigaationapit */
 .info-center {
   display: flex;
   gap: 10px;
   justify-content: center;
   flex: 1; 
+  order: 2; /* Pakotetaan keskelle */
 }
 
-/* TIETOKONEELLA: Oikea reuna (Kello) */
+/* 3. OIKEA REUNA: Kello ja Pvm */
 .info-right {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   text-align: right;
   flex: 1; 
+  order: 3; /* Pakotetaan oikeaan reunaan */
 }
 
-.weather-box {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.weather-temp {
-  font-size: 2.2rem;
-  font-weight: bold;
-  color: #fff;
-}
-.weather-icon {
-  font-size: 2.5rem;
-}
-.location-box {
-  font-size: 0.85rem;
-  color: #2196f3;
-  line-height: 1.4;
-}
-.coords {
-  color: #666;
-  font-family: monospace;
-  font-size: 0.75rem;
-}
-
+/* Elementtien tyylit (pidetään ennallaan) */
+.weather-box { display: flex; align-items: center; gap: 10px; }
+.weather-temp { font-size: 2.2rem; font-weight: bold; color: #fff; }
+.weather-icon { font-size: 2.5rem; }
+.location-box { font-size: 0.85rem; color: #2196f3; line-height: 1.4; }
+.coords { color: #666; font-family: monospace; font-size: 0.75rem; }
 .time-box { color: #fff; }
-.clock-time {
-  font-size: 2.5rem;
-  font-weight: 300;
-  line-height: 1;
-}
-.clock-date {
-  font-size: 1rem;
-  font-weight: bold;
-  color: #2196f3;
-  text-transform: uppercase;
-  margin-top: 5px;
-}
+.clock-time { font-size: 2.5rem; font-weight: 300; line-height: 1; }
+.clock-date { font-size: 1rem; font-weight: bold; color: #2196f3; text-transform: uppercase; margin-top: 5px; }
 
 /* --- LOGO --- */
 .logo-container {
