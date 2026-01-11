@@ -1,0 +1,30 @@
+*** PROJEKTIN TILANNEKATSAUS ***
+
+SOVELLUS: Kärkölän Notar Oy (Huoltokirjaus & Hallinta)
+TEKNOLOGIA: React (Vite) + Firebase Firestore.
+TIEDOSTORAKENNE: Kaikki logiikka on yhdessä tiedostossa (src/App.jsx) ja tyylit (src/App.css). Ei erillisiä komponentti-tiedostoja.
+
+NYKYISET OMINAISUUDET (Nämä toimivat ja näihin EI SAA koskea rikkomatta):
+1. ULKOASU:
+   - Tumma teema (Dark Mode), keskitetty näkymä (max-width 800px).
+   - Otsikko: "Kärkölän Notar Oy".
+   - Navigaatio: [Työt] ja [Toimisto].
+
+2. TOIMISTO-NÄKYMÄ:
+   - "Omat Tiedot": Yrityksen tiedot (IBAN, ALV, Osoitteet) + Työtehtävien hallinta.
+   - Työtehtävien hallinta: Voi lisätä tehtävän, valita tyypin (Check/Könttä/Kg/Tunti) ja VÄRIN.
+   - Asiakasrekisteri: Listaus, lisäys, poisto.
+
+3. ASIAKASKORTTI:
+   - Perustiedot (B2B/B2C valinta).
+   - Sopimukset: Listaa dynaamisesti luodut työt. Hinnat syötetään ALV 0%.
+   - Hierarkia: Ryhmät (esim. Alue) -> Kohteet (Osoite).
+   - Poikkeushinnoittelu: Kohteen vierestä "Hinnasto"-napista voi yliajaa asiakkaan perushinnan.
+
+4. TYÖT-NÄKYMÄ (WORK VIEW):
+   - Näyttää dynaamiset napit (oikeilla väreillä), jotka on luotu toimiston puolella.
+   - Napit skaalautuvat ruudun koon mukaan.
+
+HUOMIOITAVAA:
+- Älä muuta toimivaa logiikkaa (esim. tallennusta) ilman hyvää syytä.
+- Pidä koodi yhdessä App.jsx tiedostossa toistaiseksi.

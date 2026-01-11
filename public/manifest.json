@@ -1,0 +1,15 @@
+{
+  "short_name": "NotarApp",
+  "name": "Kärkölän Notar Oy",
+  "icons": [
+    {
+      "src": "app-icon.jpeg",
+      "sizes": "192x192 512x512",
+      "type": "image/jpeg"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#121212",
+  "background_color": "#121212"
+}
