@@ -130,7 +130,6 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 currentInvoiceNum = parseInt(settingsSnap.data().invoice_start_number);
             }
 
-            // TARKISTUS: Tallennetaanko uusi asiakas rekisteriin?
             let targetCustomerId = quickForm.customer_id;
             if (!targetCustomerId) {
                 const existing = customers.find(c => c.name.toLowerCase() === quickForm.customer_name.toLowerCase());
@@ -290,18 +289,15 @@ const InvoiceView = ({ onBack, showNotification }) => {
             const endStr = `${selectedMonth}-${lastDay}`;
             const monthText = `${month}/${year}`;
 
-            // 1. Työt
             const qWork = query(collection(db, "work_entries"), where("invoiced", "==", false), where("date", ">=", startStr), where("date", "<=", endStr));
             const workSnap = await getDocs(qWork);
             const workEntries = workSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), origin: 'work_entry' }));
 
-            // 2. Kiinteät (tarkistus)
             const qFixed = query(collection(db, "work_entries"), where("origin", "==", "fixed_fee"), where("date", ">=", startStr), where("date", "<=", endStr));
             const fixedSnap = await getDocs(qFixed);
             const existingFixedFees = fixedSnap.docs.map(doc => doc.data());
             const isAlreadyBilled = (customerId, propertyId, taskId) => existingFixedFees.some(f => f.customer_id === customerId && f.task_id === taskId && (propertyId ? f.property_id === propertyId : true));
 
-            // 3. Asiakkaat & Kohteet
             const custSnap = await getDocs(collection(db, "customers"));
             const propSnap = await getDocs(collection(db, "properties"));
             const customersMap = {};
@@ -309,7 +305,6 @@ const InvoiceView = ({ onBack, showNotification }) => {
             const propertyLookup = {};
             propSnap.forEach(d => { const data = d.data(); propertyLookup[d.id] = { address: data.address, cost_center: data.cost_center, group: data.group, contracts: data.contracts, customer_id: data.customer_id, id: d.id }; });
 
-            // 4. Generointi
             const monthlyTasks = tasksDef.filter(t => t.type === 'fixed_monthly');
             const generatedFixedEntries = [];
             propSnap.docs.forEach(d => {
@@ -336,7 +331,6 @@ const InvoiceView = ({ onBack, showNotification }) => {
             const allEntries = [...workEntries, ...generatedFixedEntries];
             if (allEntries.length === 0) { showNotification("Ei laskutettavaa.", "error"); setLoading(false); return; }
 
-            // 5. Ryhmittely
             const invoiceBuckets = {};
             allEntries.forEach(entry => {
                 const customer = customersMap[entry.customer_id];
@@ -353,7 +347,6 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 invoiceBuckets[invoiceKey].entries.push(entry);
             });
 
-            // 6. Rivien muotoilu
             const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
             const alvMultiplier = 1 + (alvRate / 100);
 
@@ -402,7 +395,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                         rows.push({ type: 'row', text: text, details: `Netto: ${rowNet.toFixed(2)}€ (alv0)`, total: rowGross });
                     });
                 });
-                return { id: bucket.key, customerId: customer.id, customerName: customer.name, invoiceTitle: bucket.title, customerType: customer.type, billingAddress: `${customer.street || ''}, ${customer.zip || ''} ${customer.city || ''}`, rows: rows, totalSum: totalSumGross, rawEntries: entries };
+                return { id: bucket.key, customerId: customer.id, customerName: customer.name, invoiceTitle: bucket.title, customerType: customer.type, billingAddress: `${customer.street || ''}, ${customer.zip || ''} ${customer.city || ''}`, rows: rows, totalSum: totalSumGross / alvMultiplier, rawEntries: entries };
             });
 
             setInvoices(finalInvoices.sort((a,b) => a.invoiceTitle.localeCompare(b.invoiceTitle)));
@@ -419,13 +412,18 @@ const InvoiceView = ({ onBack, showNotification }) => {
             let currentInvoiceNum = settingsSnap.exists() ? parseInt(settingsSnap.data().invoice_start_number || 1000) : 1000;
             const batch = writeBatch(db);
             const timestamp = serverTimestamp();
+            const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
+            const alvMultiplier = 1 + (alvRate / 100);
+
             for (const invoice of invoices) {
                 const invoiceNumberStr = currentInvoiceNum.toString();
                 currentInvoiceNum++;
                 const invoiceRef = doc(collection(db, "invoices")); 
                 const d = new Date(); d.setDate(d.getDate() + 14);
+                
+                // Tallennettaessa palautetaan verollinen kokonaissumma kantaan
                 batch.set(invoiceRef, {
-                    invoice_number: invoiceNumberStr, title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, billing_address: invoice.billingAddress, month: selectedMonth, date: new Date().toISOString().slice(0, 10), due_date: d.toISOString().slice(0, 10), rows: invoice.rows, total_sum: invoice.totalSum, status: 'open', created_at: timestamp
+                    invoice_number: invoiceNumberStr, title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, billing_address: invoice.billingAddress, month: selectedMonth, date: new Date().toISOString().slice(0, 10), due_date: d.toISOString().slice(0, 10), rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
                 });
                 for (const entry of invoice.rawEntries) {
                     if (entry.origin === 'work_entry') batch.update(doc(db, "work_entries", entry.id), { invoiced: true, invoice_id: invoiceRef.id });
@@ -439,22 +437,24 @@ const InvoiceView = ({ onBack, showNotification }) => {
         } catch (error) { console.error(error); showNotification("Virhe: " + error.message, "error"); } finally { setLoading(false); }
     };
 
-// --- MOBIILITULOSTUS IFRAME (KORJATTU JA TÄYDELLINEN VERSIO) ---
+    // --- MOBIILITULOSTUS IFRAME (KORJATTU JA TÄYDELLINEN VERSIO) ---
     const handlePrintManual = (inv) => {
         const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
-        const alvDivisor = 1 + (alvRate / 100);
+        const alvMultiplier = 1 + (alvRate / 100);
         const invoiceNum = inv.invoice_number || "Luonnos";
         const refNum = generateReferenceNumber(invoiceNum);
         const billDate = new Date(inv.date || new Date()).toLocaleDateString('fi-FI');
         
-        // Käytetään eräpäivää jos se on asetettu, muuten lasketaan 14pv
         const dueDate = inv.due_date 
             ? new Date(inv.due_date).toLocaleDateString('fi-FI') 
             : calculateDueDate(inv.date || new Date(), 14).split('-').reverse().join('.');
 
+        // Tulostukseen tarvitaan verollinen summa
+        const totalGross = inv.totalSum * alvMultiplier;
+
         const virtualBarcode = generateVirtualBarcode(
             companyInfo.iban, 
-            inv.totalSum || inv.total_sum, 
+            totalGross, 
             refNum, 
             inv.due_date || inv.date
         );
@@ -477,7 +477,8 @@ const InvoiceView = ({ onBack, showNotification }) => {
 
         const rowsHtml = inv.rows.map(r => {
             if (r.type === 'header') return `<tr style="background-color: #f0f0f0; font-weight: bold;"><td colspan="2" style="border-top: 2px solid #666;">${r.text}</td></tr>`;
-            let displayPrice = isB2C ? r.total : r.total / alvDivisor;
+            // Rivit ovat jo tallennettu verollisina 'total' kenttään, tai ne lasketaan tässä
+            let displayPrice = isB2C ? r.total : r.total / alvMultiplier;
             return `<tr><td style="padding: 6px 8px; border: 1px solid #ccc;">${r.text} ${r.details ? `<br><small style="font-size: 11px; color: #444; font-style: italic;">${r.details}</small>` : ''}</td><td style="text-align:right; padding: 6px 8px; border: 1px solid #ccc;">${displayPrice.toFixed(2)} €</td></tr>`;
         }).join('');
 
@@ -510,37 +511,37 @@ const InvoiceView = ({ onBack, showNotification }) => {
             <body>
                 <div class="header">
                     <div>
-                        <div class="company-name">${companyInfo.nimi || ''}</div>
-                        <div style="font-size:12px">${companyInfo.katu || ''}<br>${companyInfo.postinro || ''} ${companyInfo.toimipaikka || ''}</div>
+                        <div class=\"company-name\">${companyInfo.nimi || ''}</div>
+                        <div style=\"font-size:12px\">${companyInfo.katu || ''}<br>${companyInfo.postinro || ''} ${companyInfo.toimipaikka || ''}</div>
                     </div>
-                    <div class="meta-box">
-                        <div class="meta-row"><span class="meta-label">PÄIVÄMÄÄRÄ:</span> <span>${billDate}</span></div>
-                        <div class="meta-row"><span class="meta-label">LASKUN NRO:</span> <span>${invoiceNum}</span></div>
-                        <div class="meta-row"><span class="meta-label">VIITENUMERO:</span> <span>${refNum}</span></div>
-                        <div class="meta-row" style="margin-top:10px"><span class="meta-label">ERÄPÄIVÄ:</span> <span>${dueDate}</span></div>
+                    <div class=\"meta-box\">
+                        <div class=\"meta-row\"><span class=\"meta-label\">PÄIVÄMÄÄRÄ:</span> <span>${billDate}</span></div>
+                        <div class=\"meta-row\"><span class=\"meta-label\">LASKUN NRO:</span> <span>${invoiceNum}</span></div>
+                        <div class=\"meta-row\"><span class=\"meta-label\">VIITENUMERO:</span> <span>${refNum}</span></div>
+                        <div class=\"meta-row\" style=\"margin-top:10px\"><span class=\"meta-label\">ERÄPÄIVÄ:</span> <span>${dueDate}</span></div>
                     </div>
                 </div>
-                <div class="recipient"><b>${inv.customerName || inv.customer_name}</b><br>${(inv.billingAddress || inv.billing_address || '').replace(',', '<br>')}</div>
+                <div class=\"recipient\"><b>${inv.customerName || inv.customer_name}</b><br>${(inv.billingAddress || inv.billing_address || '').replace(',', '<br>')}</div>
                 <table>
-                    <thead><tr><th style="border: 1px solid #999; padding: 6px 8px;">KUVAUS</th><th style="text-align:right; border: 1px solid #999; padding: 6px 8px;">SUMMA ${isB2C ? '(sis. ALV)' : '(alv 0%)'}</th></tr></thead>
+                    <thead><tr><th style=\"border: 1px solid #999; padding: 6px 8px;\">KUVAUS</th><th style=\"text-align:right; border: 1px solid #999; padding: 6px 8px;\">SUMMA ${isB2C ? '(sis. ALV)' : '(alv 0%)'}</th></tr></thead>
                     <tbody>${rowsHtml}</tbody>
                 </table>
-                <div class="totals-section">
-                    <div style="width:250px">
-                        ${!isB2C ? `<div style="display:flex;justify-content:space-between"><span>VEROTON:</span><span>${((inv.totalSum || inv.total_sum) / alvDivisor).toFixed(2)} €</span></div>` : ''}
-                        <div class="total-final" style="display:flex;justify-content:space-between"><span>YHTEENSÄ:</span><span>${(inv.totalSum || inv.total_sum).toFixed(2)} €</span></div>
+                <div class=\"totals-section\">
+                    <div style=\"width:250px\">
+                        ${!isB2C ? `<div style=\"display:flex;justify-content:space-between\"><span>VEROTON:</span><span>${inv.totalSum.toFixed(2)} €</span></div>` : ''}
+                        <div class=\"total-final\" style=\"display:flex;justify-content:space-between\"><span>YHTEENSÄ:</span><span>${totalGross.toFixed(2)} €</span></div>
                     </div>
                 </div>
-                <div class="footer-wrapper">
-                    <div class="footer-content">
+                <div class=\"footer-wrapper\">
+                    <div class=\"footer-content\">
                         <div><b>Saaja:</b> ${companyInfo.nimi || ''}<br><b>IBAN:</b> ${companyInfo.iban || ''}</div>
-                        <div style="text-align:right"><b>Viite:</b> ${refNum}<br><b>Eräpäivä:</b> ${dueDate}<br><b>Summa:</b> ${(inv.totalSum || inv.total_sum).toFixed(2)} €</div>
+                        <div style=\"text-align:right\"><b>Viite:</b> ${refNum}<br><b>Eräpäivä:</b> ${dueDate}<br><b>Summa:</b> ${totalGross.toFixed(2)} €</div>
                     </div>
-                    ${virtualBarcode ? `<div class="barcode-container"><svg id="barcode"></svg><div style="font-family:monospace;margin-top:5px">${virtualBarcode}</div></div>` : ''}
+                    ${virtualBarcode ? `<div class=\"barcode-container\"><svg id=\"barcode\"></svg><div style=\"font-family:monospace;margin-top:5px\">${virtualBarcode}</div></div>` : ''}
                 </div>
                 <script>
                     window.onload = function() {
-                        if ("${virtualBarcode}") JsBarcode("#barcode", "${virtualBarcode}", {format: "CODE128", width: 1.5, height: 40, displayValue: false});
+                        if (\"${virtualBarcode}\") JsBarcode(\"#barcode\", \"${virtualBarcode}\", {format: \"CODE128\", width: 1.5, height: 40, displayValue: false});
                         setTimeout(() => { window.print(); }, 800);
                     };
                 </script>
@@ -551,10 +552,30 @@ const InvoiceView = ({ onBack, showNotification }) => {
         setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 1000);
     };
 
+    const totalBilledNet = invoices.reduce((sum, inv) => sum + inv.totalSum, 0);
+
     return (
         <div className="admin-section">
             <button onClick={onBack} className="back-btn">&larr; Takaisin</button>
             <h2>Laskutus</h2>
+
+            {/* UUSI YHTEENVETOPALKKI */}
+            {invoices.length > 0 && (
+                <div className="card-box" style={{ 
+                    background: 'linear-gradient(145deg, #1e1e1e, #252525)', 
+                    border: '1px solid #4caf50', 
+                    textAlign: 'center', 
+                    marginBottom: '20px' 
+                }}>
+                    <h3 style={{ margin: 0, color: '#4caf50', fontSize: '1.5rem' }}>
+                        Laskutusta yhteensä (ALV 0%): {totalBilledNet.toFixed(2)} €
+                    </h3>
+                    <p style={{ margin: '5px 0 0 0', fontSize: '0.85rem', color: '#aaa' }}>
+                        Sisältää {invoices.length} laskuluonnosta valitulta kuukaudelta.
+                    </p>
+                </div>
+            )}
+
             <div className="card-box" style={{display:'flex', gap:'20px', alignItems:'center', flexWrap:'wrap', justifyContent: 'space-between'}}>
                 <div style={{display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap'}}>
                     <label>Valitse kuukausi:</label>
@@ -579,7 +600,11 @@ const InvoiceView = ({ onBack, showNotification }) => {
                         <div style={{background:'#333', padding:'15px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                             <div><h3 style={{margin:0}}>{inv.invoiceTitle}</h3><span style={{fontSize:'0.8em', color:'#aaa'}}>{inv.customerType === 'b2c' ? 'Yksityinen (Sis. ALV)' : 'Yritys/Isännöinti (+ ALV)'}</span></div>
                             <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
-                                <div style={{textAlign:'right'}}><div style={{fontSize:'1.2rem', fontWeight:'bold', color:'#4caf50'}}>{inv.totalSum.toFixed(2)} €</div></div>
+                                <div style={{textAlign:'right'}}>
+                                    <div style={{fontSize:'1.2rem', fontWeight:'bold', color:'#4caf50'}}>
+                                        {inv.totalSum.toFixed(2)} € <span style={{fontSize: '0.7rem', color: '#aaa'}}>(ALV 0%)</span>
+                                    </div>
+                                </div>
                                 <button onClick={() => handlePrintManual(inv)} className="icon-btn" style={{fontSize:'1.5rem'}} title="Esikatselu">👁️</button>
                             </div>
                         </div>
