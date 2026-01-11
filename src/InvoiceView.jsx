@@ -442,25 +442,62 @@ const InvoiceView = ({ onBack, showNotification }) => {
 const handlePrintManual = (inv) => {
         const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
         const alvDivisor = 1 + (alvRate / 100);
+        const invoiceNum = inv.invoice_number || "Luonnos";
+        const refNum = generateReferenceNumber(invoiceNum);
+        const dueDate = new Date(inv.due_date).toLocaleDateString('fi-FI');
+        const virtualBarcode = generateVirtualBarcode(companyInfo.iban, inv.total_sum, refNum, inv.due_date);
+
         const oldFrame = document.getElementById('printFrame');
         if (oldFrame) oldFrame.remove();
+
         const iframe = document.createElement('iframe');
         iframe.id = 'printFrame';
-        iframe.style.position = 'fixed'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
+        iframe.style.position = 'fixed'; iframe.style.bottom = '0';
+        iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
         document.body.appendChild(iframe);
 
         const doc = iframe.contentWindow.document;
-        const rowsHtml = inv.rows.map(r => `<tr><td>${r.text}</td><td style="text-align:right">${r.total.toFixed(2)} €</td></tr>`).join('');
+        const rowsHtml = inv.rows.map(r => `<tr><td>${r.text}<br><small>${r.details || ''}</small></td><td style="text-align:right">${r.total.toFixed(2)} €</td></tr>`).join('');
 
         doc.open();
-        doc.write(`<html><head><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ccc;padding:8px}</style></head><body>
-            <h2>LASKU #${inv.invoice_number || 'Luonnos'}</h2>
-            <p><b>Asiakas:</b> ${inv.customer_name}</p>
-            <table><thead><tr><th>Kuvaus</th><th style="text-align:right">Summa</th></tr></thead><tbody>${rowsHtml}</tbody></table>
-            <p style="text-align:right"><b>Yhteensä: ${inv.total_sum.toFixed(2)} €</b></p>
-            <script>window.onload = function() { window.print(); };</script></body></html>`);
+        doc.write(`
+            <html>
+            <head>
+                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <style>
+                    body { font-family: Arial, sans-serif; font-size: 13px; padding: 20px; }
+                    .header { display: flex; justify-content: space-between; margin-bottom: 30px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    td, th { border: 1px solid #ccc; padding: 8px; }
+                    .totals { text-align: right; font-weight: bold; margin-top: 20px; font-size: 15px; }
+                    .footer { border-top: 2px dashed #000; margin-top: 50px; padding-top: 10px; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div><b>${companyInfo.nimi || ''}</b><br>${companyInfo.katu || ''}</div>
+                    <div style="text-align:right">Päiväys: ${new Date(inv.date).toLocaleDateString('fi-FI')}<br>Lasku nro: ${invoiceNum}</div>
+                </div>
+                <div style="margin: 20px 0"><b>Asiakas:</b><br>${inv.customer_name}<br>${inv.billing_address || ''}</div>
+                <table><thead><tr><th>Kuvaus</th><th style="text-align:right">Summa (sis. ALV)</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+                <div class="totals">YHTEENSÄ: ${inv.total_sum.toFixed(2)} €</div>
+                <div class="footer">
+                    <div style="display:flex;justify-content:space-between">
+                        <div>IBAN: ${companyInfo.iban || ''}</div>
+                        <div>Viite: ${refNum} | Eräpäivä: ${dueDate}</div>
+                    </div>
+                    <div style="text-align:center;margin-top:15px"><svg id="barcode"></svg><br><small>${virtualBarcode}</small></div>
+                </div>
+                <script>
+                    window.onload = function() {
+                        if ("${virtualBarcode}") JsBarcode("#barcode", "${virtualBarcode}", {format: "CODE128", width: 1.2, height: 40, displayValue: false});
+                        setTimeout(() => { window.print(); }, 800);
+                    };
+                </script>
+            </body>
+            </html>
+        `);
         doc.close();
-        setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 500);
     };
 
     return (
