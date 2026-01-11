@@ -7,7 +7,7 @@ const InstructionsView = ({ onBack }) => {
             <button onClick={onBack} className="back-btn" style={{marginBottom:'20px'}}>&larr; Takaisin</button>
             
             <div className="card-box" style={{textAlign:'left', lineHeight:'1.6'}}>
-                <h1 style={{textAlign:'center', color:'#2196f3'}}>📖 SOVELLUKSEN KÄYTTÖOPAS (RAAMATTU)</h1>
+                <h1 style={{textAlign:'center', color:'#2196f3'}}>📖 SOVELLUKSEN KÄYTTÖOPAS </h1>
                 <p style={{textAlign:'center', fontStyle:'italic', color:'#aaa'}}>Kärkölän Notar Oy - Versio 1.0</p>
                 
                 <hr style={{borderColor:'#444', margin:'20px 0'}} />
