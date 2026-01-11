@@ -375,3 +375,25 @@ input[type="color"] { height: 45px; padding: 2px; cursor: pointer; }
     display: none !important;
   }
 }
+/* --- PIKALASKUN RIVIT MOBIILISSA --- */
+@media (max-width: 700px) {
+  /* Etsitään pikalaskun rivit (grid-asettelu) ja muutetaan ne flexiksi allekkain */
+  .modal-content div[style*="display: grid"] {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    border-bottom: 1px solid #444;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+  }
+
+  /* Tehdään selite- ja hintakentistä täyslevyiset */
+  .modal-content div[style*="display: grid"] > div {
+    width: 100% !important;
+  }
+
+  .modal-content input {
+    font-size: 16px !important; /* Estää puhelinta zoomaamasta kenttään */
+    padding: 10px !important;
+  }
+}

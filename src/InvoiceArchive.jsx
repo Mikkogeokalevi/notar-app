@@ -12,6 +12,9 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
     const [searchText, setSearchText] = useState('');
     const [selectedCustomer, setSelectedCustomer] = useState('');
     const [dateRange, setDateRange] = useState({ start: '', end: '' });
+    
+    // MUOKKAUSTILA
+    const [editingInvoice, setEditingInvoice] = useState(null);
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -54,17 +57,11 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
         return base + checkDigit; 
     };
 
-    const calculateDueDate = (dateStr) => {
-        if (!dateStr) return "";
-        const d = new Date(dateStr);
+    const calculateDueDate = (inv) => {
+        if (inv.due_date) return new Date(inv.due_date).toLocaleDateString('fi-FI');
+        const d = new Date(inv.date);
         d.setDate(d.getDate() + 14); 
         return d.toLocaleDateString('fi-FI');
-    };
-
-    const getInvoiceNumber = (inv) => {
-        if (inv.invoice_number) return inv.invoice_number;
-        const num = inv.created_at?.seconds ? inv.created_at.seconds.toString().slice(-6) : "000001";
-        return `26${num}`;
     };
 
     const generateVirtualBarcode = (iban, total, ref, dateStr) => {
@@ -88,6 +85,13 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
 
     // --- TOIMINNOT ---
 
+    const markAsSent = (inv) => {
+        requestConfirm("Merkitäänkö lasku lähetetyksi? Tämän jälkeen muokkaus lukittuu.", async () => {
+            await updateDoc(doc(db, "invoices", inv.id), { status: 'sent' });
+            showNotification("Merkitty lähetetyksi ja lukittu.", "success");
+        });
+    };
+
     const markAsPaid = (inv) => {
         requestConfirm("Merkitäänkö lasku maksetuksi?", async () => {
             await updateDoc(doc(db, "invoices", inv.id), { status: 'paid' });
@@ -96,14 +100,29 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
     };
 
     const cancelInvoice = (inv) => {
-        requestConfirm("Mitätöidäänkö lasku? Se jää arkistoon, mutta merkitään perutuksi.", async () => {
+        requestConfirm("Mitätöidäänkö lasku?", async () => {
             await updateDoc(doc(db, "invoices", inv.id), { status: 'cancelled' });
             showNotification("Lasku mitätöity.", "info");
         });
     };
 
+    const handleUpdateInvoice = async () => {
+        if (!editingInvoice) return;
+        // Lasketaan loppusumma uudestaan
+        const newTotal = editingInvoice.rows.reduce((sum, r) => sum + (r.type === 'row' ? r.total : 0), 0);
+
+        await updateDoc(doc(db, "invoices", editingInvoice.id), {
+            customer_name: editingInvoice.customer_name,
+            billing_address: editingInvoice.billing_address,
+            rows: editingInvoice.rows,
+            total_sum: newTotal
+        });
+        setEditingInvoice(null);
+        showNotification("Lasku päivitetty!", "success");
+    };
+
     const deleteInvoicePermanently = (inv) => {
-        requestConfirm(`VAROITUS: Haluatko poistaa laskun kokonaan?\n\n- Lasku poistuu arkistosta.\n- Työt palautuvat "tekemättömiksi".`, async () => {
+        requestConfirm(`Poistetaanko lasku kokonaan?`, async () => {
             setLoading(true);
             try {
                 const batch = writeBatch(db);
@@ -119,9 +138,8 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                 });
                 batch.delete(doc(db, "invoices", inv.id));
                 await batch.commit();
-                showNotification("Lasku poistettu ja työt palautettu listalle.", "success");
+                showNotification("Lasku poistettu.", "success");
             } catch (e) {
-                console.error(e);
                 showNotification("Virhe: " + e.message, "error");
             } finally {
                 setLoading(false);
@@ -133,7 +151,18 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
         requestConfirm("Luodaanko hyvityslasku?", async () => {
             const creditRows = inv.rows.map(r => ({ ...r, total: -r.total }));
             await addDoc(collection(db, "invoices"), {
-                title: `HYVITYSLASKU - ${inv.title}`, customer_name: inv.customer_name, customer_type: inv.customer_type, billing_address: inv.billing_address, month: inv.month, date: new Date().toISOString().slice(0, 10), rows: creditRows, total_sum: -inv.total_sum, status: 'paid', type: 'credit_note', original_invoice_id: inv.id, created_at: serverTimestamp()
+                title: `HYVITYSLASKU - ${inv.title}`, 
+                customer_name: inv.customer_name, 
+                customer_type: inv.customer_type, 
+                billing_address: inv.billing_address, 
+                month: inv.month, 
+                date: new Date().toISOString().slice(0, 10), 
+                rows: creditRows, 
+                total_sum: -inv.total_sum, 
+                status: 'paid', 
+                type: 'credit_note', 
+                original_invoice_id: inv.id, 
+                created_at: serverTimestamp()
             });
             await updateDoc(doc(db, "invoices", inv.id), { status: 'credited' });
             showNotification("Hyvityslasku luotu.", "success");
@@ -143,12 +172,12 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
     const handlePrint = (inv) => {
         const invoiceNum = inv.invoice_number || "Luonnos";
         const refNum = generateReferenceNumber(invoiceNum);
-        const dueDate = calculateDueDate(inv.date);
+        const dueDate = calculateDueDate(inv);
         const billDate = new Date(inv.date).toLocaleDateString('fi-FI');
-        const veroton = inv.total_sum / 1.255;
-        const alv = inv.total_sum - veroton;
+        const isB2C = inv.customer_type === 'b2c';
+        const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
+        const alvDivisor = 1 + (alvRate / 100);
         
-        // Generoidaan virtuaaliviivakoodi numeroina
         const virtualBarcode = generateVirtualBarcode(companyInfo.iban, inv.total_sum, refNum, inv.date);
 
         const printContent = `
@@ -161,8 +190,6 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                     @page { size: A4; margin: 10mm 15mm; }
                     body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #000; line-height: 1.3; }
                     .container { width: 100%; max-width: 210mm; margin: 0 auto; position: relative; min-height: 270mm; }
-                    
-                    /* HEADER */
                     .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
                     .company-name { font-size: 18px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
                     .company-details { font-size: 12px; color: #333; line-height: 1.4; }
@@ -170,12 +197,8 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                     .meta-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
                     .meta-label { font-weight: bold; text-transform: uppercase; font-size: 11px; width: 130px; }
                     .meta-value { text-align: right; width: 100%; }
-
-                    /* RECIPIENT */
                     .recipient { margin-top: 10px; margin-bottom: 30px; border: 1px solid #aaa; padding: 15px; width: 300px; border-radius: 2px; min-height: 80px;}
                     .recipient b { font-size: 14px; display:block; margin-bottom: 5px; }
-
-                    /* TABLE */
                     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
                     th { text-align: left; background-color: #ddd; padding: 6px 8px; border: 1px solid #999; font-size: 11px; font-weight: bold; text-transform: uppercase; }
                     td { padding: 6px 8px; border: 1px solid #ccc; vertical-align: top; font-size: 12px; }
@@ -183,14 +206,10 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                     .col-sum { width: 25%; text-align: right; }
                     .row-header td { background-color: #f0f0f0; font-weight: bold; border-top: 2px solid #666; font-size: 12px; }
                     .small-text { font-size: 11px; color: #444; display: block; margin-top: 2px; font-style: italic; }
-
-                    /* TOTALS */
                     .totals-section { display: flex; justify-content: flex-end; margin-bottom: 40px; page-break-inside: avoid; }
                     .totals-box { width: 250px; }
                     .total-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 12px; }
                     .total-final { font-size: 14px; font-weight: bold; border-top: 1px solid #000; padding-top: 5px; margin-top: 5px; }
-
-                    /* FOOTER & BARCODE */
                     .footer-wrapper { position: absolute; bottom: 0; left: 0; right: 0; border-top: 2px dashed #000; padding-top: 10px; }
                     .footer-header { font-size: 10px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
                     .footer-content { display: flex; justify-content: space-between; font-size: 12px; }
@@ -198,12 +217,9 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                     .payment-details { width: 55%; text-align: right; }
                     .payment-row { display: flex; justify-content: space-between; margin-bottom: 6px; border-bottom: 1px solid #eee; padding-bottom: 2px; }
                     .payment-label { font-weight: bold; font-size: 11px; }
-                    
-                    /* Viivakoodialue */
                     .barcode-container { margin-top: 10px; text-align: left; padding: 5px 0; display: flex; flex-direction: column; align-items: center; }
                     .barcode-number { font-family: monospace; letter-spacing: 1px; font-size: 11px; margin-top: 5px; }
                     svg#barcode { width: 100%; max-width: 400px; height: 50px; }
-
                     tr { page-break-inside: avoid; }
                 </style>
             </head>
@@ -233,23 +249,22 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                     </div>
 
                     <table>
-                        <thead><tr><th class="col-desc">KUVAUS</th><th class="col-sum">SUMMA</th></tr></thead>
+                        <thead><tr><th class="col-desc">KUVAUS</th><th class="col-sum">SUMMA ${isB2C ? '(sis. ALV)' : '(alv 0%)'}</th></tr></thead>
                         <tbody>
                             ${inv.rows.map(r => {
-                                if (r.type === 'header') {
-                                    let cleanText = r.text.replace('📍', '').trim();
-                                    if (cleanText.startsWith('Viite:')) cleanText = cleanText.replace('Viite:', 'Kohde:');
-                                    return `<tr class="row-header"><td colspan="2">${cleanText}</td></tr>`;
-                                }
-                                return `<tr><td>${r.text} ${r.details ? `<span class="small-text">${r.details}</span>` : ''}</td><td style="text-align:right">${r.total.toFixed(2)} €</td></tr>`;
+                                if (r.type === 'header') return `<tr class="row-header"><td colspan="2">${r.text}</td></tr>`;
+                                let displayPrice = isB2C ? r.total : r.total / alvDivisor;
+                                return `<tr><td>${r.text} ${r.details ? `<span class="small-text">${r.details}</span>` : ''}</td><td style="text-align:right">${displayPrice.toFixed(2)} €</td></tr>`;
                             }).join('')}
                         </tbody>
                     </table>
 
                     <div class="totals-section">
                         <div class="totals-box">
-                            <div class="total-row"><span>VÄLISUMMA:</span> <span>${veroton.toFixed(2)} €</span></div>
-                            <div class="total-row"><span>ALV (${companyInfo.alv_pros || '25.5'}%):</span> <span>${alv.toFixed(2)} €</span></div>
+                            ${!isB2C ? `
+                                <div class="total-row"><span>VEROTON:</span> <span>${(inv.total_sum / alvDivisor).toFixed(2)} €</span></div>
+                                <div class="total-row"><span>ALV (${alvRate}%):</span> <span>${(inv.total_sum - (inv.total_sum / alvDivisor)).toFixed(2)} €</span></div>
+                            ` : ''}
                             <div class="total-row total-final"><span>YHTEENSÄ:</span> <span>${inv.total_sum.toFixed(2)} €</span></div>
                         </div>
                     </div>
@@ -260,7 +275,6 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                             <div class="bank-details">
                                 <div class="bank-row"><span class="bank-label" style="display:inline-block;width:60px;font-weight:bold">Saaja:</span> ${companyInfo.nimi || 'Kärkölän Notar Oy'}</div>
                                 <div class="bank-row"><span class="bank-label" style="display:inline-block;width:60px;font-weight:bold">IBAN:</span> ${companyInfo.iban || '-'}</div>
-                                <div class="bank-row"><span class="bank-label" style="display:inline-block;width:60px;font-weight:bold">BIC:</span> -</div>
                             </div>
                             <div class="payment-details">
                                 <div class="payment-row"><span class="payment-label">Viitenumero:</span> <span>${refNum}</span></div>
@@ -268,46 +282,21 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                                 <div class="payment-row"><span class="payment-label">Euroa:</span> <span>${inv.total_sum.toFixed(2)}</span></div>
                             </div>
                         </div>
-                        
-                        ${virtualBarcode ? `
-                        <div class="barcode-container">
-                            <svg id="barcode"></svg>
-                            <div class="barcode-number">Virtuaaliviivakoodi: ${virtualBarcode}</div>
-                        </div>
-                        ` : ''}
+                        ${virtualBarcode ? `<div class="barcode-container"><svg id="barcode"></svg><div class="barcode-number">${virtualBarcode}</div></div>` : ''}
                     </div>
                 </div>
-                
                 <script>
-                    // Kun sivu on ladattu, piirretään viivakoodi ja tulostetaan
                     window.onload = function() {
-                        try {
-                            if ("${virtualBarcode}") {
-                                JsBarcode("#barcode", "${virtualBarcode}", {
-                                    format: "CODE128",
-                                    lineColor: "#000",
-                                    width: 1.5,
-                                    height: 40,
-                                    displayValue: false, // Ei numeroa viivojen alle (meillä on se erikseen)
-                                    margin: 0
-                                });
-                            }
-                        } catch(e) { console.error("Viivakoodivirhe:", e); }
-                        
+                        if ("${virtualBarcode}") JsBarcode("#barcode", "${virtualBarcode}", {format: "CODE128", lineColor: "#000", width: 1.5, height: 40, displayValue: false, margin: 0});
                         setTimeout(() => { window.print(); }, 800);
                     };
                 </script>
             </body>
             </html>
         `;
-        
-        const win = window.open('', '_blank', 'width=950,height=1200');
-        if (win) {
-            win.document.write(printContent);
-            win.document.close();
-        } else {
-            showNotification("Salli ponnahdusikkunat!", "error");
-        }
+        const win = window.open('', '_blank');
+        win.document.write(printContent);
+        win.document.close();
     };
 
     // --- SUODATUS ---
@@ -351,31 +340,75 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
 
             <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
                 {loading && <p style={{textAlign:'center', color:'#aaa'}}>Ladataan laskuja...</p>}
-                {!loading && filteredInvoices.length === 0 && <div style={{textAlign:'center', padding:'30px', color:'#666', border:'2px dashed #333', borderRadius:'8px'}}><p>Ei laskuja.</p></div>}
                 {filteredInvoices.map(inv => (
-                    <div key={inv.id} style={{background: '#1e1e1e', border: '1px solid #333', borderRadius:'6px', padding:'10px 15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: inv.status === 'cancelled' ? 0.6 : 1}}>
+                    <div key={inv.id} className="card-box" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding:'10px 15px', opacity: inv.status === 'cancelled' ? 0.6 : 1}}>
                         <div style={{flex: 1}}>
                             <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                                <span style={{fontWeight:'bold', fontSize:'1rem', color: inv.total_sum < 0 ? '#ff5252' : 'white'}}>{inv.title} <span style={{fontWeight:'normal', color:'#aaa', fontSize:'0.9rem'}}>(#{inv.invoice_number || '---'})</span></span>
-                                {inv.status === 'open' && <span style={{background:'#ff9800', color:'black', padding:'1px 5px', borderRadius:'3px', fontSize:'0.7rem', fontWeight:'bold'}}>AVOIN</span>}
-                                {inv.status === 'paid' && <span style={{background:'#4caf50', color:'white', padding:'1px 5px', borderRadius:'3px', fontSize:'0.7rem', fontWeight:'bold'}}>MAKSETTU</span>}
-                                {inv.status === 'cancelled' && <span style={{background:'#d32f2f', color:'white', padding:'1px 5px', borderRadius:'3px', fontSize:'0.7rem', fontWeight:'bold'}}>MITÄTÖITY</span>}
-                                {inv.status === 'credited' && <span style={{background:'#9c27b0', color:'white', padding:'1px 5px', borderRadius:'3px', fontSize:'0.7rem', fontWeight:'bold'}}>HYVITETTY</span>}
+                                <span style={{fontWeight:'bold'}}>{inv.customer_name} (#{inv.invoice_number || '---'})</span>
+                                {inv.status === 'open' && <span style={{background:'#ff9800', color:'black', padding:'2px 5px', borderRadius:'3px', fontSize:'0.7rem', fontWeight:'bold'}}>AVOIN / LUONNOS</span>}
+                                {inv.status === 'sent' && <span style={{background:'#2196f3', color:'white', padding:'2px 5px', borderRadius:'3px', fontSize:'0.7rem', fontWeight:'bold'}}>LÄHETETTY</span>}
+                                {inv.status === 'paid' && <span style={{background:'#4caf50', color:'white', padding:'2px 5px', borderRadius:'3px', fontSize:'0.7rem', fontWeight:'bold'}}>MAKSETTU</span>}
                             </div>
-                            <div style={{fontSize:'0.85rem', color:'#aaa', marginTop:'2px'}}>{inv.date} &nbsp;•&nbsp; {inv.customer_name}</div>
+                            <div style={{fontSize:'0.8rem', color:'#aaa'}}>{inv.date} • {inv.total_sum.toFixed(2)} €</div>
                         </div>
-                        <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
-                            <div style={{fontSize:'1.1rem', fontWeight:'bold', minWidth:'80px', textAlign:'right', color: inv.total_sum < 0 ? '#ff5252' : '#4caf50'}}>{inv.total_sum.toFixed(2)} €</div>
-                            <div style={{display:'flex', gap:'5px'}}>
-                                <button onClick={() => handlePrint(inv)} className="icon-btn" title="Tulosta">🖨️</button>
-                                <button onClick={() => handlePrint(inv)} className="icon-btn" title="Lataa PDF" style={{color: '#90caf9'}}>📄 PDF</button>
-                                {inv.status === 'open' && (<><button onClick={() => markAsPaid(inv)} className="icon-btn" style={{color:'#4caf50'}} title="Merkitse maksetuksi">✅</button><button onClick={() => createCreditNote(inv)} className="icon-btn" style={{color:'#ff9800'}} title="Hyvityslasku">🔄</button><button onClick={() => cancelInvoice(inv)} className="icon-btn" style={{color:'#d32f2f'}} title="Mitätöi">❌</button></>)}
-                                {inv.status === 'cancelled' && (<button onClick={() => deleteInvoicePermanently(inv)} className="icon-btn" style={{color:'#ff5252', border:'1px solid #555', borderRadius:'4px', padding:'2px 5px'}} title="Poista pysyvästi">🗑️ Tuhoa</button>)}
-                            </div>
+                        <div style={{display:'flex', gap:'5px'}}>
+                            <button onClick={() => handlePrint(inv)} className="icon-btn">🖨️</button>
+                            
+                            {inv.status === 'open' && (
+                                <button onClick={() => setEditingInvoice(inv)} className="icon-btn" style={{color:'#ff9800'}} title="Muokkaa">✏️</button>
+                            )}
+                            {inv.status === 'open' && (
+                                <button onClick={() => markAsSent(inv)} className="icon-btn" style={{color:'#2196f3'}} title="Merkitse lähetetyksi">📧</button>
+                            )}
+                            {inv.status === 'sent' && (
+                                <button onClick={() => markAsPaid(inv)} className="icon-btn" style={{color:'#4caf50'}} title="Merkitse maksetuksi">✅</button>
+                            )}
+                            {inv.status === 'open' && (
+                                <button onClick={() => cancelInvoice(inv)} className="icon-btn" style={{color:'#d32f2f'}} title="Mitätöi">❌</button>
+                            )}
+                            <button onClick={() => deleteInvoicePermanently(inv)} className="icon-btn" style={{color:'#ff5252'}} title="Poista">🗑️</button>
                         </div>
                     </div>
                 ))}
             </div>
+
+            {/* MUOKKAUSMODAALI */}
+            {editingInvoice && (
+                <div className="modal-overlay">
+                    <div className="modal-content" style={{maxWidth:'600px'}}>
+                        <h3>Muokkaa laskua #{editingInvoice.invoice_number}</h3>
+                        <div className="form-group">
+                            <label>Asiakas</label>
+                            <input value={editingInvoice.customer_name} onChange={e => setEditingInvoice({...editingInvoice, customer_name: e.target.value})} />
+                        </div>
+                        <div className="form-group">
+                            <label>Osoite</label>
+                            <input value={editingInvoice.billing_address} onChange={e => setEditingInvoice({...editingInvoice, billing_address: e.target.value})} />
+                        </div>
+                        <label>Rivit (Hinnat sis. ALV):</label>
+                        <div style={{maxHeight:'300px', overflowY:'auto', border:'1px solid #444', padding:'10px', borderRadius:'6px', marginBottom:'15px'}}>
+                            {editingInvoice.rows.map((row, idx) => row.type === 'row' && (
+                                <div key={idx} style={{display:'flex', gap: '5px', marginBottom: '5px'}}>
+                                    <input value={row.text} onChange={e => {
+                                        const newRows = [...editingInvoice.rows];
+                                        newRows[idx].text = e.target.value;
+                                        setEditingInvoice({...editingInvoice, rows: newRows});
+                                    }} style={{flex:3}} />
+                                    <input type="number" value={row.total.toFixed(2)} onChange={e => {
+                                        const newRows = [...editingInvoice.rows];
+                                        newRows[idx].total = parseFloat(e.target.value) || 0;
+                                        setEditingInvoice({...editingInvoice, rows: newRows});
+                                    }} style={{width:'100px', textAlign:'right'}} />
+                                </div>
+                            ))}
+                        </div>
+                        <div style={{display:'flex', gap:'10px'}}>
+                            <button onClick={handleUpdateInvoice} className="save-btn">Tallenna</button>
+                            <button onClick={() => setEditingInvoice(null)} className="back-btn">Peruuta</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
