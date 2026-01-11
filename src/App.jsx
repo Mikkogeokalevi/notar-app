@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import InvoiceView from './InvoiceView'; 
 import InvoiceArchive from './InvoiceArchive';
+import InstructionsView from './InstructionsView';
 import Login from './Login'; // <--- UUSI: Kirjautumissivu
 import logo from './logo.jpeg'; 
 import { db, auth } from './firebase'; // <--- UUSI: auth mukana
@@ -719,9 +720,11 @@ function App() {
           <div className="work-button" style={{backgroundColor: '#00695c'}} onClick={() => setCurrentView('customers')}><h3>👥 Asiakasrekisteri</h3></div>
           <div className="work-button" style={{backgroundColor: '#795548'}} onClick={() => setCurrentView('invoicing')}><h3>💶 Laskutus</h3></div>
           <div className="work-button" style={{backgroundColor: '#37474f'}} onClick={() => setCurrentView('archive')}><h3>🗄️ Laskuarkisto</h3></div>
+          
+          {/* UUSI OHJEKIRJA PAINIKE */}
+          <div className="work-button" style={{backgroundColor: '#607d8b'}} onClick={() => setCurrentView('instructions')}><h3>📖 Ohjekirja</h3></div>
         </div>
         
-        {/* ULOSKIRJAUTUMINEN */}
         <button onClick={handleLogout} className="back-btn" style={{marginTop: '40px', borderColor: '#d32f2f', color: '#d32f2f'}}>
           Kirjaudu ulos ({user.email})
         </button>
@@ -758,7 +761,10 @@ function App() {
       {currentView === 'settings' && <CompanySettings onBack={() => setCurrentView('admin')} showNotification={showNotification} requestConfirm={requestConfirm} />}
       {currentView === 'customers' && <CustomerView onBack={() => setCurrentView('admin')} availableTasks={tasks} showNotification={showNotification} requestConfirm={requestConfirm} />}
       {currentView === 'invoicing' && <InvoiceView onBack={() => setCurrentView('admin')} showNotification={showNotification} />}
-      {currentView === 'archive' && <InvoiceArchive onBack={() => setCurrentView('admin')} showNotification={showNotification} requestConfirm={requestConfirm} />}
+     {currentView === 'archive' && <InvoiceArchive onBack={() => setCurrentView('admin')} showNotification={showNotification} requestConfirm={requestConfirm} />}
+      
+      {/* UUSI RIVI TÄHÄN */}
+      {currentView === 'instructions' && <InstructionsView onBack={() => setCurrentView('admin')} />}
     </div>
   )
 }
