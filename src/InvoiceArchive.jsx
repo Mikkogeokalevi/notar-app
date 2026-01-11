@@ -108,8 +108,8 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
 
     const handleUpdateInvoice = async () => {
         if (!editingInvoice) return;
-        // Lasketaan loppusumma uudestaan
-        const newTotal = editingInvoice.rows.reduce((sum, r) => sum + (r.type === 'row' ? r.total : 0), 0);
+        // Lasketaan loppusumma uudestaan verollisena
+        const newTotal = editingInvoice.rows.reduce((sum, r) => sum + (r.type === 'row' ? parseFloat(r.total || 0) : 0), 0);
 
         await updateDoc(doc(db, "invoices", editingInvoice.id), {
             customer_name: editingInvoice.customer_name,
@@ -122,7 +122,7 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
     };
 
     const deleteInvoicePermanently = (inv) => {
-        requestConfirm(`Poistetaanko lasku kokonaan?`, async () => {
+        requestConfirm(`VAROITUS: Haluatko poistaa laskun kokonaan?\n\n- Lasku poistuu arkistosta.\n- Työt palautuvat "tekemättömiksi".`, async () => {
             setLoading(true);
             try {
                 const batch = writeBatch(db);
@@ -138,7 +138,7 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                 });
                 batch.delete(doc(db, "invoices", inv.id));
                 await batch.commit();
-                showNotification("Lasku poistettu.", "success");
+                showNotification("Lasku poistettu ja työt palautettu.", "success");
             } catch (e) {
                 showNotification("Virhe: " + e.message, "error");
             } finally {
@@ -343,7 +343,7 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                 {filteredInvoices.map(inv => (
                     <div key={inv.id} className="card-box" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding:'10px 15px', opacity: inv.status === 'cancelled' ? 0.6 : 1}}>
                         <div style={{flex: 1}}>
-                            <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                            <div style={{display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap'}}>
                                 <span style={{fontWeight:'bold'}}>{inv.customer_name} (#{inv.invoice_number || '---'})</span>
                                 {inv.status === 'open' && <span style={{background:'#ff9800', color:'black', padding:'2px 5px', borderRadius:'3px', fontSize:'0.7rem', fontWeight:'bold'}}>AVOIN / LUONNOS</span>}
                                 {inv.status === 'sent' && <span style={{background:'#2196f3', color:'white', padding:'2px 5px', borderRadius:'3px', fontSize:'0.7rem', fontWeight:'bold'}}>LÄHETETTY</span>}
@@ -388,17 +388,20 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                         <label>Rivit (Hinnat sis. ALV):</label>
                         <div style={{maxHeight:'300px', overflowY:'auto', border:'1px solid #444', padding:'10px', borderRadius:'6px', marginBottom:'15px'}}>
                             {editingInvoice.rows.map((row, idx) => row.type === 'row' && (
-                                <div key={idx} style={{display:'flex', gap: '5px', marginBottom: '5px'}}>
+                                <div key={idx} style={{display:'flex', gap: '5px', marginBottom: '5px', flexDirection:'column', borderBottom:'1px solid #333', paddingBottom:'10px'}}>
                                     <input value={row.text} onChange={e => {
                                         const newRows = [...editingInvoice.rows];
                                         newRows[idx].text = e.target.value;
                                         setEditingInvoice({...editingInvoice, rows: newRows});
                                     }} style={{flex:3}} />
-                                    <input type="number" value={row.total.toFixed(2)} onChange={e => {
-                                        const newRows = [...editingInvoice.rows];
-                                        newRows[idx].total = parseFloat(e.target.value) || 0;
-                                        setEditingInvoice({...editingInvoice, rows: newRows});
-                                    }} style={{width:'100px', textAlign:'right'}} />
+                                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                                       <label style={{fontSize:'0.8rem'}}>Summa (€):</label>
+                                       <input type="number" value={row.total.toFixed(2)} onChange={e => {
+                                           const newRows = [...editingInvoice.rows];
+                                           newRows[idx].total = parseFloat(e.target.value) || 0;
+                                           setEditingInvoice({...editingInvoice, rows: newRows});
+                                       }} style={{width:'100px', textAlign:'right'}} />
+                                    </div>
                                 </div>
                             ))}
                         </div>

@@ -397,3 +397,31 @@ input[type="color"] { height: 45px; padding: 2px; cursor: pointer; }
     padding: 10px !important;
   }
 }
+/* --- MODAALIN SKROLLAUS JA KORKEUS MOBIILISSA --- */
+@media (max-width: 700px) {
+  .modal-overlay {
+    align-items: flex-start; /* Alkaa ylhäältä, jotta skrollaus toimii luonnollisesti */
+    padding: 10px;
+    overflow-y: auto; /* Sallii koko overlayn skrollauksen jos sisältö on pitkä */
+  }
+
+  .modal-content {
+    margin-top: 20px;
+    margin-bottom: 20px;
+    max-height: none; /* Sallitaan modaalin kasvaa sisällön mukaan */
+    width: 95%;
+    padding: 15px;
+    position: relative;
+  }
+
+  /* Varmistetaan että pikalaskun rivit eivät levähdä, vaan pysyvät siisteinä pinoina */
+  .modal-content div[style*="display: grid"],
+  .modal-content div[style*="display: flex"] {
+    flex-wrap: wrap;
+  }
+  
+  /* Lisää tilaa tallennusnapin alle, ettei se ole ihan alareunassa kiinni */
+  .modal-content button.save-btn {
+    margin-bottom: 10px;
+  }
+}
