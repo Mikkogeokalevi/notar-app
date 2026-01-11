@@ -399,3 +399,30 @@ input[type="color"] { height: 45px; padding: 2px; cursor: pointer; }
 .card-box li {
   margin-bottom: 10px;
 }
+/* --- ALAREUNAN LOGOPALKKI --- */
+.footer-logo-container {
+  text-align: center;
+  margin-top: 40px; /* Väliä yläpuolella olevaan sisältöön */
+  padding: 20px 0;
+  border-top: 1px solid #333; /* Ohut viiva erottamaan muusta sisällöstä */
+  width: 100%;
+}
+
+.footer-logo {
+  max-width: 100%;
+  height: auto;
+  max-height: 50px; /* Rajoittaa kuvan kapeaksi palkiksi */
+  opacity: 0.8; /* Tekee logosta hieman hienovaraisemman */
+  transition: opacity 0.3s ease;
+}
+
+.footer-logo:hover {
+  opacity: 1; /* Kirkastuu kun hiiri on päällä */
+}
+
+/* Piilotetaan logo tulosteista, jotta se ei tule laskujen päälle */
+@media print {
+  .footer-logo-container {
+    display: none !important;
+  }
+}
