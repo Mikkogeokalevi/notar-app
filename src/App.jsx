@@ -767,7 +767,7 @@ function App() {
       {currentView === 'instructions' && <InstructionsView onBack={() => setCurrentView('admin')} />}
     {/* TÄMÄ ON UUSI LOGOPALKKI ALAREUNAAN */}
       <footer className="footer-logo-container">
-          <img src="/alaMKlogo.png" alt="Mikko Kalevi Logo" className="footer-logo" />
+          <img src="alaMKlogo.png" alt="mikkokalevi 2026 © All Rights Reserved." className="footer-logo" />
       </footer>
     </div>
   )
