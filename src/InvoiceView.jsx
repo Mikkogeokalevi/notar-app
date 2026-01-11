@@ -69,7 +69,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 type: cust.type || 'b2c' 
             }));
         } else {
-            setQuickForm(prev => ({ ...prev, customer_id: '', customer_name: '', address: '' }));
+            setQuickForm(prev => ({ ...prev, customer_id: '' }));
         }
     };
 
@@ -439,56 +439,28 @@ const InvoiceView = ({ onBack, showNotification }) => {
         } catch (error) { console.error(error); showNotification("Virhe: " + error.message, "error"); } finally { setLoading(false); }
     };
 
-    const handlePrintManual = (inv) => {
-        const invoiceNum = inv.invoice_number || "Luonnos";
-        const refNum = generateReferenceNumber(invoiceNum);
-        const dueDateDisplay = new Date(inv.due_date || inv.date).toLocaleDateString('fi-FI');
-        const virtualBarcode = generateVirtualBarcode(companyInfo.iban, inv.total_sum, refNum, inv.due_date || inv.date);
-        const isB2C = inv.customer_type === 'b2c';
+const handlePrintManual = (inv) => {
         const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
         const alvDivisor = 1 + (alvRate / 100);
+        const oldFrame = document.getElementById('printFrame');
+        if (oldFrame) oldFrame.remove();
+        const iframe = document.createElement('iframe');
+        iframe.id = 'printFrame';
+        iframe.style.position = 'fixed'; iframe.style.bottom = '0'; iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
+        document.body.appendChild(iframe);
 
-        // MOBIILIKORJAUS: Avaa ikkuna heti
-        const win = window.open('', '_blank');
-        if (!win) {
-            alert("Selaimesi esti tulostusikkunan avaamisen. Salli ponnahdusikkunat tämän sivuston asetuksista.");
-            return;
-        }
+        const doc = iframe.contentWindow.document;
+        const rowsHtml = inv.rows.map(r => `<tr><td>${r.text}</td><td style="text-align:right">${r.total.toFixed(2)} €</td></tr>`).join('');
 
-        const rowsHtml = inv.rows.map(r => {
-            if (r.type === 'header') return `<tr><td colspan="2" style="font-weight:bold;background:#eee">${r.text}</td></tr>`;
-            let displayPrice = isB2C ? r.total : r.total / alvDivisor;
-            return `<tr><td>${r.text} ${r.details ? `<br><small style="color:#666">${r.details}</small>` : ''}</td><td style="text-align:right">${displayPrice.toFixed(2)}€</td></tr>`;
-        }).join('');
-
-        const printContent = `<html><head><title>Lasku ${invoiceNum}</title><style>
-            body{font-family:Arial,sans-serif;padding:40px;font-size:12px;color:#333}
-            .header{display:flex;justify-content:space-between;margin-bottom:40px}
-            .company{font-size:14px;font-weight:bold}
-            .meta{text-align:right}
-            table{width:100%;border-collapse:collapse;margin-bottom:30px}
-            th{text-align:left;border-bottom:2px solid #000;padding:8px}
-            td{border-bottom:1px solid #ddd;padding:8px;vertical-align:top}
-            .totals{text-align:right;font-size:14px;font-weight:bold;margin-top:20px}
-            .barcode{margin-top:40px;padding:15px;background:#f9f9f9;border:1px solid #ccc;font-family:monospace;text-align:center;font-size:13px}
-        </style></head><body>
-            <div class="header">
-                <div><b>LASKUTTAJA:</b><br>${companyInfo.nimi || ''}<br>${companyInfo.katu || ''}<br>${companyInfo.postinro || ''} ${companyInfo.toimipaikka || ''}</div>
-                <div class="meta">Päiväys: ${new Date(inv.date).toLocaleDateString('fi-FI')}<br>Laskun nro: ${invoiceNum}<br>Viite: ${refNum}</div>
-            </div>
-            <div style="margin-bottom:40px"><b>LASKUN SAAJA:</b><br>${inv.customer_name}<br>${inv.billing_address?.replace(',', '<br>')}</div>
-            <table><thead><tr><th>Kuvaus</th><th style="text-align:right">Summa ${isB2C ? '(sis. alv)' : '(alv 0%)'}</th></tr></thead><tbody>${rowsHtml}</tbody></table>
-            <div class="totals">
-                ${!isB2C ? `<div>Veroton: ${(inv.total_sum / alvDivisor).toFixed(2)} €</div><div>ALV ${alvRate}%: ${(inv.total_sum - (inv.total_sum / alvDivisor)).toFixed(2)} €</div>` : ''}
-                <div style="font-size:1.2em;margin-top:10px">YHTEENSÄ: ${inv.total_sum.toFixed(2)} €</div>
-            </div>
-            <div style="margin-top:40px;border-top:1px solid #000;padding-top:20px">Eräpäivä: <b>${dueDateDisplay}</b> &nbsp; Viite: <b>${refNum}</b> &nbsp; IBAN: <b>${companyInfo.iban || ''}</b></div>
-            ${virtualBarcode ? `<div class="barcode">VIRTUAALIVIIVAKOODI<br>${virtualBarcode}</div>` : ''}
-            <script>window.onload = function() { window.print(); };</script>
-        </body></html>`;
-        
-        win.document.write(printContent);
-        win.document.close();
+        doc.open();
+        doc.write(`<html><head><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ccc;padding:8px}</style></head><body>
+            <h2>LASKU #${inv.invoice_number || 'Luonnos'}</h2>
+            <p><b>Asiakas:</b> ${inv.customer_name}</p>
+            <table><thead><tr><th>Kuvaus</th><th style="text-align:right">Summa</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+            <p style="text-align:right"><b>Yhteensä: ${inv.total_sum.toFixed(2)} €</b></p>
+            <script>window.onload = function() { window.print(); };</script></body></html>`);
+        doc.close();
+        setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 500);
     };
 
     return (
