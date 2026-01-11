@@ -12,66 +12,74 @@ const InstructionsView = ({ onBack }) => {
                 
                 <hr style={{borderColor:'#444', margin:'20px 0'}} />
 
-                <h2 style={{color:'#4caf50'}}>1. YLEISKATSAUS</h2>
-                <p>Tämä sovellus on räätälöity työkalu kiinteistöhuollon arjen hallintaan. Se yhdistää kentällä tehtävät työkirjaukset ja toimiston laskutusprosessin yhdeksi saumattomaksi kokonaisuudeksi. Sovellus on PWA-yhteensopiva, eli voit asentaa sen puhelimesi aloitusnäytölle "Asenna sovellus" -toiminnolla.</p>
+                <h2 style={{color:'#4caf50'}}>1. ASENNUS PUHELIMEEN (PWA)</h2>
+                <p>Sovellusta käytetään suoraan selaimen kautta, mutta se on suunniteltu asennettavaksi "sovelluskuvakkeeksi" puhelimen kotinäytölle.</p>
+                <ul>
+                    <li><b>Android (Chrome):</b> 
+                        <br />1. Avaa sovellus Chromella.
+                        <br />2. Paina selaimen oikeasta yläkulmasta kolmea pistettä.
+                        <br />3. Valitse <b>"Asenna sovellus"</b> tai <b>"Lisää aloitusnäyttöön"</b>.
+                    </li>
+                    <li><b>iPhone (Safari):</b> 
+                        <br />1. Avaa sovellus Safarilla.
+                        <br />2. Paina alareunan "Jaa"-painiketta (neliö ja nuoli ylös).
+                        <br />3. Rullaa valikkoa alaspäin ja valitse <b>"Lisää kotivalikkoon"</b>.
+                    </li>
+                    <li><b>Hyöty:</b> Näin sovellus toimii ilman selaimen osoitepalkkeja ja on aina yhden painalluksen päässä.</li>
+                </ul>
 
                 <h2 style={{color:'#4caf50'}}>2. TYÖT-NÄKYMÄ (KENTTÄTYÖ)</h2>
-                <p>Tämä on työntekijän päänäkymä. Joka kerta kun työ suoritetaan, se kuitataan täällä.</p>
+                <p>Tämä on kenttätyöntekijän päänäkymä. Joka kerta kun työ suoritetaan, se kuitataan täällä reaaliajassa.</p>
                 <ul>
-                    <li><b>Työtehtävän valinta:</b> Klikkaa suoritettua työtä (esim. Auraus).</li>
-                    <li><b>Massakirjaus (Checkbox):</b> Listassa näkyvät vain ne kohteet, joiden sopimukseen kyseinen työ kuuluu. Valitse kohteet ja paina "Tallenna valinnat".</li>
+                    <li><b>Työtehtävän valinta:</b> Valitse suoritettu työ (esim. Auraus tai Hiekoitus). Tehtävät näkyvät omina värillisinä painikkeinaan.</li>
+                    <li><b>Massakirjaus (Checkbox):</b> Näet listan vain niistä kohteista, joilla on kyseinen työ sopimuksessaan. Valitse tehdyt kohteet ja paina "Tallenna valinnat".</li>
                     <li><b>Määräperusteinen (kg):</b> Esimerkiksi hiekoituksessa syötetään käytetty määrä kiloina suoraan kohteen kohdalle.</li>
-                    <li><b>Täsmäkirjaus (Lisätyöt & Liitetyöt):</b> Jos työtä ei ole vakiosopimuksessa, valitse asiakas ja kohde, kirjoita vapaamuotoinen selite ja määrittele hinta (Työ ja Tarvikkeet erikseen).</li>
-                    <li><b>Selaa & Muokkaa:</b> Alareunan painikkeesta pääset näkemään omat kirjauksesi. Voit korjata niitä niin kauan kuin niitä ei ole vielä laskutettu.</li>
+                    <li><b>Täsmäkirjaus (Lisätyöt & Liitetyöt):</b> Jos työtä ei ole vakiosopimuksessa, valitse asiakas ja kohde, kirjoita selite ja määrittele hinta (Työ ja Tarvikkeet erikseen ALV 0%).</li>
+                    <li><b>Selaa & Muokkaa:</b> Alareunan painikkeesta pääset näkemään omat kirjauksesi. Voit korjata virheitä tai poistaa turhia kirjauksia niin kauan kuin niitä ei ole vielä laskutettu.</li>
                 </ul>
 
                 <h2 style={{color:'#4caf50'}}>3. TOIMISTON OHJAUSPANEELI</h2>
                 
                 <h3>A. Asiakasrekisteri</h3>
-                <p>Asiakkaat on jaoteltu kolmeen ryhmään: Isännöinti, Yritykset ja Yksityiset.</p>
                 <ul>
-                    <li><b>Asiakaskortti:</b> Täällä hallinnoidaan yhteystietoja ja maksuehtoja.</li>
-                    <li><b>Kohteet ja ryhmät:</b> Voit luoda asiakkaalle "Ryhmiä" (esim. eri taloyhtiöt isännöitsijän alla) ja lisätä niihin kohteita (osoitteita).</li>
-                    <li><b>Hinnoittelun hierarkia:</b> Sovellus tarkistaa hinnan ensin kohteelta (Osoite). Jos kohteelle ei ole asetettu hintaa, se hakee asiakkaan oletushinnan.</li>
-                    <li><b>Maksuehdot:</b> Voit määrittää asiakkaalle 7, 14 tai 30 päivän maksuajan tai kiinteän eräpäivän kuukaudessa.</li>
+                    <li><b>Asiakaskortti:</b> Hallinnoi yhteystietoja, laskutusosoitetta ja maksuehtoa (7pv, 14pv, 30pv tai kiinteä eräpäivä).</li>
+                    <li><b>Kohteet ja ryhmät:</b> Voit luoda asiakkaalle ryhmiä (esim. eri taloyhtiöt isännöitsijän alla) ja lisätä niihin kohteita (osoitteita).</li>
+                    <li><b>Hinnoittelun hierarkia:</b> Sovellus tarkistaa hinnan ensin kohteelta. Jos kohteelle ei ole asetettu omaa hintaa, käytetään asiakkaan oletushinnastoa.</li>
                 </ul>
 
                 <h3>B. Yrityksen Asetukset</h3>
                 <ul>
-                    <li><b>Perustiedot:</b> IBAN, Y-tunnus ja ALV-prosentti.</li>
-                    <li><b>Työtehtävien hallinta:</b> Voit luoda uusia tyyppejä. Esimerkiksi "Hiekoitus kg" käyttää automaattisesti kiloperusteista syöttöä, kun taas "Auraus" käyttää kerta-asetusta.</li>
-                    <li><b>Laskunumerointi:</b> Voit asettaa seuraavan lähtevän laskun numeron.</li>
+                    <li><b>Tiedot:</b> Määrittele IBAN, Y-tunnus ja oletus-ALV% (esim. 25.5), joka vaikuttaa laskulaskentaan.</li>
+                    <li><b>Työtehtävien hallinta:</b> Voit luoda uusia tehtäviä ja määrittää niiden tyypin (Checkbox, Kerta, KK-sopimus, kg tai Tuntityö).</li>
                 </ul>
 
                 <h3>C. Laskutus (Automaatio)</h3>
-                <p>Tämä osio kerää kuukauden työt laskuiksi.</p>
                 <ul>
-                    <li><b>Generointi:</b> Valitse kuukausi ja paina "Hae laskutettavat".</li>
-                    <li><b>KK-sopimukset:</b> Sovellus tarkistaa jokaisen kohteen kohdalla, kuuluuko siihen kiinteä kuukausimaksu, ja lisää sen laskulle automaattisesti.</li>
-                    <li><b>Hyväksyntä:</b> Kun painat "Hyväksy & Merkitse", kirjaukset lukitaan laskuun ja siirretään arkistoon. Samalla laskunumerointi juoksee eteenpäin.</li>
+                    <li><b>Generointi:</b> Valitse kuukausi ja paina "Hae laskutettavat". Sovellus kerää kaikki kyseisen kuukauden kirjaukset ja yhdistää ne asiakaskohtaisiksi laskuiksi.</li>
+                    <li><b>KK-sopimukset:</b> Sovellus huomioi automaattisesti kaikki kiinteähintaiset kuukausisopimukset, vaikka työkirjausta ei olisi tehty.</li>
+                    <li><b>Hyväksyntä:</b> "Hyväksy & Merkitse" siirtää laskut arkistoon, lukitsee työkirjaukset laskutetuiksi ja kasvattaa laskunumerointia.</li>
                 </ul>
 
                 <h3>D. Pikalasku (Manuaalinen)</h3>
-                <p>Käytetään, kun halutaan luoda lasku nopeasti ilman työkirjauksia.</p>
+                <p>Käytetään erillisten laskujen tekoon ilman kenttäkirjauksia.</p>
                 <ul>
-                    <li><b>Uusi asiakas:</b> Jos kirjoitat nimen, jota ei löydy rekisteristä, sovellus tallentaa asiakkaan automaattisesti myöhempää käyttöä varten.</li>
-                    <li><b>Hinnat:</b> Syötä hinnat aina ALV 0%. Sovellus laskee loppusumman yrityksen asetuksista löytyvällä ALV-kannalla.</li>
-                    <li><b>Mobiilikäyttö:</b> Rivit on optimoitu pystysuuntaiseksi, jotta selitteet on helppo kirjoittaa.</li>
+                    <li><b>Asiakkaan luonti:</b> Jos kirjoitat uuden nimen pikalaskuun, järjestelmä tallentaa sen automaattisesti asiakasrekisteriin myöhempää käyttöä varten.</li>
+                    <li><b>ALV-käsittely:</b> Syötä hinnat aina ALV 0%. Sovellus laskee loppusumman verollisena yrityksen asetusten mukaan.</li>
+                    <li><b>Maksuehdot:</b> Pikalaskulle voi valita laskukohtaisen maksuehdon ja eräpäivän.</li>
                 </ul>
 
-                <h2 style={{color:'#4caf50'}}>4. LASKUARKISTO JA TULOSTUS</h2>
+                <h2 style={{color:'#4caf50'}}>4. LASKUARKISTO JA LUKITUS</h2>
                 <ul>
                     <li><b>Tilat:</b> 
-                        <br />- 🟠 <b>Avoin:</b> Laskua voi vielä muokata (✏️) tai poistaa.
-                        <br />- 🔵 <b>Lähetetty:</b> Lasku on lukittu muokkauksilta virheiden välttämiseksi.
-                        <br />- 🟢 <b>Maksettu:</b> Lasku on kuitattu hoidetuksi.
+                        <br />- 🟠 <b>Avoin/Luonnos:</b> Laskua voi vielä muokata (✏️) tai poistaa kokonaan.
+                        <br />- 🔵 <b>Lähetetty (📧):</b> Lukitsee laskun sisällön. Merkitse lasku lähetetyksi, kun olet toimittanut sen asiakkaalle.
+                        <br />- 🟢 <b>Maksettu (✅):</b> Kuittaa laskun hoidetuksi.
                     </li>
-                    <li><b>Tulostus (🖨️):</b> Luo virallisen laskun esikatselun, jossa on viivakoodi, viitenumero ja erittely.</li>
-                    <li><b>Mitätöinti:</b> Lasku voidaan mitätöidä, jolloin se jää arkistoon harmaana merkintänä historian säilyttämiseksi.</li>
+                    <li><b>Tulostus (🖨️):</b> Luo virallisen A4-laskun esikatselun, joka sisältää viivakoodin, viitenumeron ja eritellyt rivit.</li>
                 </ul>
 
                 <h2 style={{color:'#4caf50'}}>5. TIETOTURVA</h2>
-                <p>Sovellus vaatii aina kirjautumisen. Järjestelmä muistaa käyttäjän, joten sisäänkirjautumista ei tarvitse tehdä joka kerta uudestaan samalla laitteella.</p>
+                <p>Sovellus vaatii kirjautumisen sähköpostilla ja salasanalla. Istunto säilyy laitteella, joten sisäänkirjautumista ei tarvitse tehdä jatkuvasti uudelleen, ellei käyttäjä kirjaudu ulos ohjauspaneelista.</p>
             </div>
         </div>
     );
