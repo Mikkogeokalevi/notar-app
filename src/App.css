@@ -219,26 +219,32 @@ input[type="color"] { height: 45px; padding: 2px; cursor: pointer; }
   margin-bottom: 20px;
   border: 1px solid #333;
   box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-  flex-wrap: wrap;
-  gap: 15px;
 }
 
-.info-left, .info-right {
+/* TIETOKONEELLA: Vasen reuna (Sää) */
+.info-left {
   display: flex;
   align-items: center;
   gap: 15px;
-  flex: 1;
+  flex: 1; 
+  justify-content: flex-start;
 }
 
-.info-right {
-  justify-content: flex-end;
-  text-align: right;
-}
-
+/* TIETOKONEELLA: Keskikohta (Napit) */
 .info-center {
   display: flex;
   gap: 10px;
   justify-content: center;
+  flex: 1; 
+}
+
+/* TIETOKONEELLA: Oikea reuna (Kello) */
+.info-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  flex: 1; 
 }
 
 .weather-box {
@@ -301,83 +307,64 @@ input[type="color"] { height: 45px; padding: 2px; cursor: pointer; }
   transition: max-height 0.3s ease;
 }
 
-/* --- MOBIILIOPTIMOINTI (PÄIVITETTY) --- */
+/* --- MOBIILIOPTIMOINTI --- */
 @media (max-width: 700px) {
-  /* 1. LOGO: Hieman isompi kuin aiemmin */
   .logo-container {
     padding-top: 5px;
     padding-bottom: 5px;
     position: relative;
   }
   .app-logo {
-    max-height: 90px; /* Nostettu 60px -> 90px */
+    max-height: 90px; 
   }
 
-  /* 2. INFOPALKKI: Tietorivi päälle, napit alle */
   .info-bar-container {
     display: flex;
-    flex-direction: row; /* Pakotetaan riviksi */
-    flex-wrap: wrap;     /* Sallitaan rivinvaihto */
-    padding: 10px 15px;  /* Hieman ilmaa reunoille */
-    gap: 0;              /* Poistetaan turha väli elementtien väliltä */
+    flex-direction: row; 
+    flex-wrap: wrap;     
+    padding: 10px 15px;  
+    gap: 0;              
     align-items: center;
   }
 
-  /* VASEN: Sää ja Sijainti (Ylärivi, vasen puoli) */
   .info-left {
-    width: 50%; /* Vie puolet leveydestä */
-    order: 1;   /* Ensimmäisenä */
+    width: 50%; 
+    order: 1;   
     justify-content: flex-start;
     flex: none;
     gap: 8px;
   }
   
-  /* OIKEA: Kello ja Pvm (Ylärivi, oikea puoli) */
   .info-right {
-    width: 50%; /* Vie puolet leveydestä */
-    order: 2;   /* Toisena */
+    width: 50%; 
+    order: 2;   
     justify-content: flex-end;
     text-align: right;
     flex: none;
     gap: 8px;
   }
 
-  /* KESKI: Napit (Alarivi, täysi leveys) */
   .info-center {
-    width: 100%; /* Tippuu omalle rivilleen */
-    order: 3;    /* Kolmantena */
-    margin-top: 10px; /* Väli ylärivin tietoihin */
+    width: 100%; 
+    order: 3;    
+    margin-top: 10px; 
     display: flex;
     gap: 10px;
   }
 
-  /* Säästetään tilaa piilottamalla koordinaatit */
   .coords { display: none; }
-  
-  /* Pienennetään fontteja jotta mahtuu vierekkäin */
   .weather-temp { font-size: 1.4rem; }
   .weather-icon { font-size: 1.6rem; }
   .location-box { font-size: 0.75rem; line-height: 1.2; }
-  
   .clock-time { font-size: 1.8rem; }
   .clock-date { font-size: 0.8rem; margin-top: 0; }
   
-  /* Napit koko leveydelle */
   .nav-btn {
     flex: 1;
     padding: 12px 0;
   }
-}
 
-/* ESTETÄÄN LOGON TULOSTUMINEN */
-@media print {
-  .logo-container, .app-logo {
-    display: none !important;
-  }
-}
-/* --- PIKALASKUN RIVIT MOBIILISSA --- */
-@media (max-width: 700px) {
-  /* Etsitään pikalaskun rivit (grid-asettelu) ja muutetaan ne flexiksi allekkain */
+  /* --- PIKALASKUN RIVIT MOBIILISSA --- */
   .modal-content div[style*="display: grid"] {
     display: flex !important;
     flex-direction: column !important;
@@ -387,44 +374,49 @@ input[type="color"] { height: 45px; padding: 2px; cursor: pointer; }
     margin-bottom: 15px;
   }
 
-  /* Tehdään selite- ja hintakentistä täyslevyiset */
   .modal-content div[style*="display: grid"] > div {
     width: 100% !important;
   }
 
   .modal-content input {
-    font-size: 16px !important; /* Estää puhelinta zoomaamasta kenttään */
+    font-size: 16px !important; 
     padding: 10px !important;
   }
-}
-/* --- MODAALIN SKROLLAUS JA KORKEUS MOBIILISSA --- */
-@media (max-width: 700px) {
+
+  /* --- MODAALIN SKROLLAUS MOBIILISSA --- */
   .modal-overlay {
-    align-items: flex-start; /* Alkaa ylhäältä, jotta skrollaus toimii luonnollisesti */
+    align-items: flex-start; 
     padding: 10px;
-    overflow-y: auto; /* Sallii koko overlayn skrollauksen jos sisältö on pitkä */
+    overflow-y: auto; 
   }
 
   .modal-content {
     margin-top: 20px;
     margin-bottom: 20px;
-    max-height: none; /* Sallitaan modaalin kasvaa sisällön mukaan */
+    max-height: none; 
     width: 95%;
     padding: 15px;
     position: relative;
   }
 
-  /* Varmistetaan että pikalaskun rivit eivät levähdä, vaan pysyvät siisteinä pinoina */
   .modal-content div[style*="display: grid"],
   .modal-content div[style*="display: flex"] {
     flex-wrap: wrap;
   }
   
-  /* Lisää tilaa tallennusnapin alle, ettei se ole ihan alareunassa kiinni */
   .modal-content button.save-btn {
     margin-bottom: 10px;
   }
 }
+
+/* ESTETÄÄN LOGON TULOSTUMINEN */
+@media print {
+  .logo-container, .app-logo {
+    display: none !important;
+  }
+}
+
+/* OHJEKIRJAN TYYLIT */
 .card-box ul {
   padding-left: 20px;
   margin-bottom: 20px;
