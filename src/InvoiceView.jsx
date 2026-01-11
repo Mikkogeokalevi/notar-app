@@ -69,7 +69,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 type: cust.type || 'b2c' 
             }));
         } else {
-            setQuickForm(prev => ({ ...prev, customer_id: '' }));
+            setQuickForm(prev => ({ ...prev, customer_id: '', customer_name: '', address: '' }));
         }
     };
 
@@ -448,6 +448,13 @@ const InvoiceView = ({ onBack, showNotification }) => {
         const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
         const alvDivisor = 1 + (alvRate / 100);
 
+        // MOBIILIKORJAUS: Avaa ikkuna heti
+        const win = window.open('', '_blank');
+        if (!win) {
+            alert("Selaimesi esti tulostusikkunan avaamisen. Salli ponnahdusikkunat tämän sivuston asetuksista.");
+            return;
+        }
+
         const rowsHtml = inv.rows.map(r => {
             if (r.type === 'header') return `<tr><td colspan="2" style="font-weight:bold;background:#eee">${r.text}</td></tr>`;
             let displayPrice = isB2C ? r.total : r.total / alvDivisor;
@@ -477,9 +484,9 @@ const InvoiceView = ({ onBack, showNotification }) => {
             </div>
             <div style="margin-top:40px;border-top:1px solid #000;padding-top:20px">Eräpäivä: <b>${dueDateDisplay}</b> &nbsp; Viite: <b>${refNum}</b> &nbsp; IBAN: <b>${companyInfo.iban || ''}</b></div>
             ${virtualBarcode ? `<div class="barcode">VIRTUAALIVIIVAKOODI<br>${virtualBarcode}</div>` : ''}
+            <script>window.onload = function() { window.print(); };</script>
         </body></html>`;
         
-        const win = window.open('', '_blank');
         win.document.write(printContent);
         win.document.close();
     };

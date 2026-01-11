@@ -180,6 +180,13 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
         
         const virtualBarcode = generateVirtualBarcode(companyInfo.iban, inv.total_sum, refNum, inv.date);
 
+        // MOBIILIKORJAUS: Avaa ikkuna heti napin painalluksesta
+        const win = window.open('', '_blank');
+        if (!win) {
+            alert("Selaimesi esti tulostusikkunan avaamisen. Salli ponnahdusikkunat tämän sivuston asetuksista.");
+            return;
+        }
+
         const printContent = `
             <!DOCTYPE html>
             <html>
@@ -294,7 +301,6 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
             </body>
             </html>
         `;
-        const win = window.open('', '_blank');
         win.document.write(printContent);
         win.document.close();
     };
