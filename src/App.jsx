@@ -728,16 +728,20 @@ function App() {
   const [notification, setNotification] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, message: '', onConfirm: null });
 
-  // --- KIRJAUTUMISEN KUUNTELIJA & TURVALLISUUS ---
+// --- KIRJAUTUMISEN KUUNTELIJA & TURVALLISUUS ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      // 1. TARKISTETAAN, ONKO KÄYTTÄJÄ LISTALLA
-      if (currentUser && !ALLOWED_EMAILS.includes(currentUser.email)) {
+      // 1. SIIVOTAAN SÄHKÖPOSTIT (poistetaan välit ja isot kirjaimet)
+      const cleanUserEmail = currentUser ? currentUser.email.trim().toLowerCase() : '';
+      const cleanAllowedList = ALLOWED_EMAILS.map(e => e.trim().toLowerCase());
+
+      // 2. TARKISTETAAN, ONKO KÄYTTÄJÄ LISTALLA
+      if (currentUser && !cleanAllowedList.includes(cleanUserEmail)) {
           alert(`Pääsy evätty: ${currentUser.email}\nTällä käyttäjällä ei ole oikeuksia sovellukseen.`);
           signOut(auth); // Kirjataan heti ulos
           setUser(null);
       } else {
-          // 2. JOS ON LISTALLA, PÄÄSTETÄÄN SISÄÄN
+          // 3. JOS ON LISTALLA, PÄÄSTETÄÄN SISÄÄN
           setUser(currentUser);
       }
       setLoadingUser(false);
