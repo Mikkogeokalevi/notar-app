@@ -3,13 +3,21 @@ import './App.css';
 import InvoiceView from './InvoiceView'; 
 import InvoiceArchive from './InvoiceArchive';
 import InstructionsView from './InstructionsView';
-import Login from './Login'; // <--- UUSI: Kirjautumissivu
+import Login from './Login'; 
 import logo from './logo.jpeg'; 
-import { db, auth } from './firebase'; // <--- UUSI: auth mukana
+import { db, auth } from './firebase'; 
 import { 
-  doc, setDoc, addDoc, deleteDoc, updateDoc, collection, onSnapshot, query, orderBy, getDoc, where, arrayUnion, serverTimestamp 
+  doc, setDoc, addDoc, deleteDoc, updateDoc, collection, onSnapshot, query, orderBy, getDoc, where, arrayUnion, serverTimestamp, getDocs 
 } from 'firebase/firestore';
-import { onAuthStateChanged, signOut } from 'firebase/auth'; // <--- UUSI: Auth toiminnot
+import { onAuthStateChanged, signOut } from 'firebase/auth'; 
+
+// --- TURVALLISUUS: SALLITUT KÄYTTÄJÄT ---
+// Lisää tähän listaan oma sähköpostisi ja asiakkaan sähköposti.
+// Jos joku muu yrittää kirjautua, hänet kirjataan heti ulos.
+const ALLOWED_EMAILS = [
+    'toni@kauppinen.info',
+    'tapio.sarajarvi@phnet.fi ' // <--- VAIHDA TÄHÄN ASIAKKAAN OIKEA SÄHKÖPOSTI KUN TIEDÄT SEN
+];
 
 // --- APUKOMPONENTIT ---
 
@@ -84,13 +92,11 @@ const InfoBar = ({ currentView, setCurrentView }) => {
     const [locationName, setLocationName] = useState('Paikannetaan...');
     const [coords, setCoords] = useState(null);
 
-    // 1. Kello
     useEffect(() => {
         const timer = setInterval(() => setTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
 
-    // 2. Sijainti ja Sää
     useEffect(() => {
         if (!navigator.geolocation) {
             setLocationName("Ei paikannusta");
@@ -103,12 +109,10 @@ const InfoBar = ({ currentView, setCurrentView }) => {
             setCoords({ lat: lat.toFixed(3), lon: lon.toFixed(3) });
 
             try {
-                // Sää (Open-Meteo)
                 const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
                 const weatherData = await weatherRes.json();
                 setWeather(weatherData.current_weather);
 
-                // Osoite (OpenStreetMap)
                 const locRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
                 const locData = await locRes.json();
                 const city = locData.address.city || locData.address.town || locData.address.village || locData.address.municipality || "Tuntematon";
@@ -145,7 +149,6 @@ const InfoBar = ({ currentView, setCurrentView }) => {
 
     return (
         <div className="info-bar-container">
-            {/* VASEN: Sää ja Sijainti */}
             <div className="info-left">
                 <div className="weather-box">
                     <span className="weather-icon">{weather ? getWeatherIcon(weather.weathercode) : "..."}</span>
@@ -156,19 +159,15 @@ const InfoBar = ({ currentView, setCurrentView }) => {
                     {coords && <div className="coords">N {coords.lat} E {coords.lon}</div>}
                 </div>
             </div>
-
-            {/* OIKEA: Kello ja Pvm */}
+            <div className="info-center">
+                <button className={`nav-btn ${currentView === 'tyot' || currentView === 'log' ? 'active' : ''}`} onClick={() => setCurrentView('tyot')}>👷 Työt</button>
+                <button className={`nav-btn ${currentView !== 'tyot' && currentView !== 'log' ? 'active' : ''}`} onClick={() => setCurrentView('admin')}>🏢 Toimisto</button>
+            </div>
             <div className="info-right">
                 <div className="time-box">
                     <div className="clock-time">{timeStr}</div>
                     <div className="clock-date">{dayName} {dateStr}</div>
                 </div>
-            </div>
-
-            {/* KESKI: Navigaationapit */}
-            <div className="info-center">
-                <button className={`nav-btn ${currentView === 'tyot' || currentView === 'log' ? 'active' : ''}`} onClick={() => setCurrentView('tyot')}>👷 Työt</button>
-                <button className={`nav-btn ${currentView !== 'tyot' && currentView !== 'log' ? 'active' : ''}`} onClick={() => setCurrentView('admin')}>🏢 Toimisto</button>
             </div>
         </div>
     );
@@ -416,7 +415,7 @@ const WorkView = ({ availableTasks, onOpenLog, showNotification }) => {
 };
 
 // --- KOMPONENTTI: COMPANY SETTINGS ---
-const CompanySettings = ({ onBack, showNotification, requestConfirm }) => {
+const CompanySettings = ({ onBack, showNotification, requestConfirm, user }) => {
   const [tiedot, setTiedot] = useState({ 
       nimi: '', y_tunnus: '', alv_pros: '25.5', katu: '', postinro: '', toimipaikka: '', email: '', puhelin: '', iban: '', 
       invoice_start_number: '1000', 
@@ -428,6 +427,7 @@ const CompanySettings = ({ onBack, showNotification, requestConfirm }) => {
   const [taskType, setTaskType] = useState('checkbox');
   const [taskColor, setTaskColor] = useState('#2196f3');
   const [showInWorkView, setShowInWorkView] = useState(true);
+  const [loadingBackup, setLoadingBackup] = useState(false); 
 
   useEffect(() => { const unsubscribe = onSnapshot(doc(db, "settings", "company_profile"), (snap) => { if (snap.exists()) { setTiedot({ ...snap.data(), tasks: snap.data().tasks || [] }); } }); return () => unsubscribe(); }, []);
 
@@ -448,14 +448,47 @@ const CompanySettings = ({ onBack, showNotification, requestConfirm }) => {
       setEditingId(task.id); setTaskName(task.label); setTaskType(task.type || 'checkbox'); setTaskColor(task.color || '#2196f3'); setShowInWorkView(task.showInWorkView !== false); setIsModalOpen(true);
   };
 
+  const lataaVarmuuskopio = async () => {
+      if(!window.confirm("Ladataanko koko tietokanta (JSON)? Tämä voi kestää hetken.")) return;
+      setLoadingBackup(true);
+      try {
+          const backupData = { generated_at: new Date().toISOString(), collections: {} };
+          const collectionsToBackup = ["customers", "properties", "work_entries", "invoices", "settings"];
+          for (const colName of collectionsToBackup) {
+              const q = query(collection(db, colName));
+              const snap = await getDocs(q);
+              backupData.collections[colName] = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          }
+          const jsonString = JSON.stringify(backupData, null, 2);
+          const blob = new Blob([jsonString], { type: "application/json" });
+          const href = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = href;
+          link.download = `NOTAR_BACKUP_${new Date().toISOString().slice(0,10)}.json`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          showNotification("Varmuuskopio ladattu onnistuneesti! ✅", "success");
+      } catch (error) {
+          console.error(error);
+          showNotification("Virhe varmuuskopioinnissa: " + error.message, "error");
+      } finally {
+          setLoadingBackup(false);
+      }
+  };
+
   return (
     <div className="admin-section">
       <button onClick={onBack} className="back-btn">&larr; Takaisin</button>
       <h2>Yrityksen Asetukset</h2>
+      
+      {/* 1. TYÖTEHTÄVÄT */}
       <div className="card-box">
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}><h3>1. Työtehtävät</h3><button onClick={() => {setEditingId(null); setTaskName(''); setTaskColor('#2196f3'); setIsModalOpen(true);}} className="save-btn">+ Lisää</button></div>
         <div style={{display: 'flex', flexWrap: 'wrap', gap: '10px'}}>{tiedot.tasks.map(task => (<div key={task.id} className="task-pill" style={{borderLeft: `5px solid ${task.color}`, opacity: task.showInWorkView === false ? 0.6 : 1}}><span style={{flex:1}}><strong>{task.label}</strong> <small>({task.type === 'fixed_monthly' ? 'KK-sopimus' : task.type})</small></span><div style={{display:'flex', gap:'5px'}}><button onClick={() => avaaMuokkaus(task)} className="icon-btn edit-btn" title="Muokkaa">✏️</button><button onClick={() => poistaTehtava(task.id)} className="icon-btn delete-btn" title="Poista">🗑️</button></div></div>))}</div>
       </div>
+
+      {/* 2. YRITYKSEN TIEDOT */}
       <div className="card-box">
         <h3>2. Yrityksen tiedot</h3>
         <div className="form-group"><label>Nimi</label><input value={tiedot.nimi} onChange={e => setTiedot({...tiedot, nimi: e.target.value})} /></div>
@@ -473,6 +506,22 @@ const CompanySettings = ({ onBack, showNotification, requestConfirm }) => {
         </div>
         <button className="save-btn" onClick={tallennaPerustiedot}>Tallenna</button>
       </div>
+
+      {/* 3. VARMUUSKOPIOINTI (SIIRRETTY ALAS) */}
+      {user && user.email === 'toni@kauppinen.info' && (
+          <div className="card-box" style={{border: '1px solid #4caf50'}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <div>
+                    <h3 style={{margin:0, color:'#4caf50'}}>3. Datan Hallinta (ADMIN)</h3>
+                    <p style={{fontSize:'0.85rem', color:'#aaa', margin:'5px 0 0 0'}}>Lataa kaikki tiedot koneelle (JSON).</p>
+                </div>
+                <button onClick={lataaVarmuuskopio} className="save-btn" disabled={loadingBackup} style={{background:'#2e7d32'}}>
+                    {loadingBackup ? 'Ladataan...' : '📥 Lataa Varmuuskopio'}
+                </button>
+              </div>
+          </div>
+      )}
+
       {isModalOpen && (
           <div className="modal-overlay"><div className="modal-content"><h3>{editingId ? 'Muokkaa' : 'Lisää'}</h3>
           <div className="form-group"><label>Nimi</label><input value={taskName} onChange={e => setTaskName(e.target.value)} /></div>
@@ -670,18 +719,26 @@ const CustomerView = ({ onBack, availableTasks, showNotification, requestConfirm
 
 // PÄÄOHJELMA
 function App() {
-  const [user, setUser] = useState(null); // <--- KÄYTTÄJÄN TILA
-  const [loadingUser, setLoadingUser] = useState(true); // <--- LATAUSTILA
+  const [user, setUser] = useState(null); 
+  const [loadingUser, setLoadingUser] = useState(true); 
 
   const [currentView, setCurrentView] = useState('tyot'); 
   const [tasks, setTasks] = useState([]);
   const [notification, setNotification] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, message: '', onConfirm: null });
 
-  // --- KIRJAUTUMISEN KUUNTELIJA ---
+  // --- KIRJAUTUMISEN KUUNTELIJA & TURVALLISUUS ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+      // 1. TARKISTETAAN, ONKO KÄYTTÄJÄ LISTALLA
+      if (currentUser && !ALLOWED_EMAILS.includes(currentUser.email)) {
+          alert(`Pääsy evätty: ${currentUser.email}\nTällä käyttäjällä ei ole oikeuksia sovellukseen.`);
+          signOut(auth); // Kirjataan heti ulos
+          setUser(null);
+      } else {
+          // 2. JOS ON LISTALLA, PÄÄSTETÄÄN SISÄÄN
+          setUser(currentUser);
+      }
       setLoadingUser(false);
     });
     return () => unsubscribe();
@@ -700,16 +757,14 @@ function App() {
       });
   };
 
-  // Haetaan tehtävät vain jos käyttäjä on kirjautunut
   useEffect(() => { 
     if (!user) return; 
     const unsubscribe = onSnapshot(doc(db, "settings", "company_profile"), (doc) => { if (doc.exists() && doc.data().tasks) { setTasks(doc.data().tasks); } else { setTasks([]); } }); return () => unsubscribe(); 
   }, [user]);
 
-  // Uloskirjautuminen
   const handleLogout = async () => {
     await signOut(auth);
-    setCurrentView('tyot'); // Resetoidaan näkymä
+    setCurrentView('tyot'); 
   };
 
   const AdminDashboard = () => (
@@ -720,8 +775,6 @@ function App() {
           <div className="work-button" style={{backgroundColor: '#00695c'}} onClick={() => setCurrentView('customers')}><h3>👥 Asiakasrekisteri</h3></div>
           <div className="work-button" style={{backgroundColor: '#795548'}} onClick={() => setCurrentView('invoicing')}><h3>💶 Laskutus</h3></div>
           <div className="work-button" style={{backgroundColor: '#37474f'}} onClick={() => setCurrentView('archive')}><h3>🗄️ Laskuarkisto</h3></div>
-          
-          {/* UUSI OHJEKIRJA PAINIKE */}
           <div className="work-button" style={{backgroundColor: '#607d8b'}} onClick={() => setCurrentView('instructions')}><h3>📖 Ohjekirja</h3></div>
         </div>
         
@@ -731,18 +784,14 @@ function App() {
       </div>
   );
 
-  // --- RENDERÖINTI ---
-
   if (loadingUser) {
     return <div style={{color: 'white', textAlign: 'center', marginTop: '50px'}}>Ladataan...</div>;
   }
 
-  // JOS EI KIRJAUTUNUT -> NÄYTÄ LOGIN
   if (!user) {
     return <Login />;
   }
 
-  // JOS KIRJAUTUNUT -> NÄYTÄ SOVELLUS
   return (
     <div style={{maxWidth: '800px', margin: '0 auto', padding: '10px'}}>
       <div className="logo-container">
@@ -758,14 +807,13 @@ function App() {
       {currentView === 'log' && <WorkLog onBack={() => setCurrentView('tyot')} showNotification={showNotification} requestConfirm={requestConfirm} />}
       
       {currentView === 'admin' && <AdminDashboard />}
-      {currentView === 'settings' && <CompanySettings onBack={() => setCurrentView('admin')} showNotification={showNotification} requestConfirm={requestConfirm} />}
+      {/* HUOM: NYT VÄLITÄMME 'user' TIEDON KOMPONENTILLE, JOTTA VARMUUSKOPIO NAPPI TOIMII */}
+      {currentView === 'settings' && <CompanySettings onBack={() => setCurrentView('admin')} showNotification={showNotification} requestConfirm={requestConfirm} user={user} />}
       {currentView === 'customers' && <CustomerView onBack={() => setCurrentView('admin')} availableTasks={tasks} showNotification={showNotification} requestConfirm={requestConfirm} />}
       {currentView === 'invoicing' && <InvoiceView onBack={() => setCurrentView('admin')} showNotification={showNotification} />}
-     {currentView === 'archive' && <InvoiceArchive onBack={() => setCurrentView('admin')} showNotification={showNotification} requestConfirm={requestConfirm} />}
-      
-      {/* UUSI RIVI TÄHÄN */}
+      {currentView === 'archive' && <InvoiceArchive onBack={() => setCurrentView('admin')} showNotification={showNotification} requestConfirm={requestConfirm} />}
       {currentView === 'instructions' && <InstructionsView onBack={() => setCurrentView('admin')} />}
-    {/* TÄMÄ ON UUSI LOGOPALKKI ALAREUNAAN */}
+
       <footer className="footer-logo-container">
           <img src="alaMKlogo.png" alt="mikkokalevi 2026 © All Rights Reserved." className="footer-logo" />
       </footer>
