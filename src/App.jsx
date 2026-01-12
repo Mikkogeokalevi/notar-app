@@ -17,7 +17,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 // Jos joku muu yrittää kirjautua, hänet kirjataan heti ulos.
 const ALLOWED_EMAILS = [
     'toni@kauppinen.info',
-    'tapio.sarajarvi@phnet.fi ' // <--- VAIHDA TÄHÄN ASIAKKAAN OIKEA SÄHKÖPOSTI KUN TIEDÄT SEN
+    'tapio.sarajarvi@phnet.fi' // <--- VAIHDA TÄHÄN ASIAKKAAN OIKEA SÄHKÖPOSTI KUN TIEDÄT SEN
 ];
 
 // --- APUKOMPONENTIT ---
