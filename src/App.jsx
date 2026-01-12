@@ -3,6 +3,7 @@ import './App.css';
 import InvoiceView from './InvoiceView'; 
 import InvoiceArchive from './InvoiceArchive';
 import InstructionsView from './InstructionsView';
+import ReportsView from './ReportsView';
 import Login from './Login'; 
 import logo from './logo.jpeg'; 
 import { db, auth } from './firebase'; 
@@ -768,13 +769,14 @@ function App() {
   };
 
   const AdminDashboard = () => (
-      <div className="admin-section" style={{textAlign: 'center'}}>
-        <h2>Toimiston Ohjauspaneeli</h2>
-        <div className="button-grid" style={{marginTop: '30px'}}>
+    <div className="admin-section" style={{textAlign: 'center'}}>
+      <h2>Toimiston Ohjauspaneeli</h2>
+      <div className="button-grid" style={{marginTop: '30px'}}>
           <div className="work-button" style={{backgroundColor: '#455a64'}} onClick={() => setCurrentView('settings')}><h3>🏢 Omat Tiedot & Työt</h3></div>
           <div className="work-button" style={{backgroundColor: '#00695c'}} onClick={() => setCurrentView('customers')}><h3>👥 Asiakasrekisteri</h3></div>
           <div className="work-button" style={{backgroundColor: '#795548'}} onClick={() => setCurrentView('invoicing')}><h3>💶 Laskutus</h3></div>
           <div className="work-button" style={{backgroundColor: '#37474f'}} onClick={() => setCurrentView('archive')}><h3>🗄️ Laskuarkisto</h3></div>
+		  <div className="work-button" style={{backgroundColor: '#6a1b9a'}} onClick={() => setCurrentView('reports')}><h3>📊 Raportit</h3></div>
           <div className="work-button" style={{backgroundColor: '#607d8b'}} onClick={() => setCurrentView('instructions')}><h3>📖 Ohjekirja</h3></div>
         </div>
         
@@ -812,6 +814,7 @@ function App() {
       {currentView === 'customers' && <CustomerView onBack={() => setCurrentView('admin')} availableTasks={tasks} showNotification={showNotification} requestConfirm={requestConfirm} />}
       {currentView === 'invoicing' && <InvoiceView onBack={() => setCurrentView('admin')} showNotification={showNotification} />}
       {currentView === 'archive' && <InvoiceArchive onBack={() => setCurrentView('admin')} showNotification={showNotification} requestConfirm={requestConfirm} />}
+	  {currentView === 'reports' && <ReportsView onBack={() => setCurrentView('admin')} />}
       {currentView === 'instructions' && <InstructionsView onBack={() => setCurrentView('admin')} />}
 
       <footer className="footer-logo-container">

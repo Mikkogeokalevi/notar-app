@@ -437,7 +437,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
         } catch (error) { console.error(error); showNotification("Virhe: " + error.message, "error"); } finally { setLoading(false); }
     };
 
-    // --- MOBIILITULOSTUS IFRAME (KORJATTU JA TÄYDELLINEN VERSIO) ---
+ // --- MOBIILITULOSTUS IFRAME (PÄIVITETTY ULKOASU) ---
     const handlePrintManual = (inv) => {
         const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
         const alvMultiplier = 1 + (alvRate / 100);
@@ -476,10 +476,9 @@ const InvoiceView = ({ onBack, showNotification }) => {
         const isB2C = inv.customerType === 'b2c' || inv.customer_type === 'b2c';
 
         const rowsHtml = inv.rows.map(r => {
-            if (r.type === 'header') return `<tr style="background-color: #f0f0f0; font-weight: bold;"><td colspan="2" style="border-top: 2px solid #666;">${r.text}</td></tr>`;
-            // Rivit ovat jo tallennettu verollisina 'total' kenttään, tai ne lasketaan tässä
+            if (r.type === 'header') return `<tr class="row-header"><td colspan="2">${r.text}</td></tr>`;
             let displayPrice = isB2C ? r.total : r.total / alvMultiplier;
-            return `<tr><td style="padding: 6px 8px; border: 1px solid #ccc;">${r.text} ${r.details ? `<br><small style="font-size: 11px; color: #444; font-style: italic;">${r.details}</small>` : ''}</td><td style="text-align:right; padding: 6px 8px; border: 1px solid #ccc;">${displayPrice.toFixed(2)} €</td></tr>`;
+            return `<tr><td>${r.text} ${r.details ? `<span class="small-text">${r.details}</span>` : ''}</td><td style="text-align:right">${displayPrice.toFixed(2)} €</td></tr>`;
         }).join('');
 
         doc.open();
@@ -492,56 +491,67 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 <style>
                     @page { size: A4; margin: 10mm 15mm; }
                     body { font-family: Arial, sans-serif; font-size: 13px; color: #000; line-height: 1.3; padding: 10px; }
-                    .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
-                    .company-name { font-size: 18px; font-weight: bold; text-transform: uppercase; }
-                    .meta-box { text-align: left; width: 300px; }
-                    .meta-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
-                    .meta-label { font-weight: bold; font-size: 11px; }
-                    .recipient { margin-top: 10px; margin-bottom: 30px; border: 1px solid #aaa; padding: 15px; width: 300px; min-height: 80px;}
+                    .header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; }
+                    .header-title { font-size: 24px; font-weight: bold; letter-spacing: 2px; }
+                    .company-info { font-size: 14px; }
+                    .company-name { font-size: 18px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
+                    .meta-box { text-align: left; width: 280px; }
+                    .meta-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+                    .meta-label { font-weight: bold; font-size: 12px; }
+                    .recipient { margin-top: 10px; margin-bottom: 40px; border: 1px solid #aaa; padding: 15px; width: 300px; min-height: 80px;}
                     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                    th { text-align: left; background-color: #ddd; padding: 6px 8px; border: 1px solid #999; font-size: 11px; }
+                    th { text-align: left; background-color: #ddd; padding: 8px; border: 1px solid #999; font-size: 11px; text-transform: uppercase;}
+                    td { padding: 8px; border: 1px solid #ccc; vertical-align: top; }
+                    .row-header td { background-color: #f0f0f0; font-weight: bold; border-top: 2px solid #666; }
+                    .small-text { font-size: 11px; color: #444; display: block; font-style: italic; }
                     .totals-section { display: flex; justify-content: flex-end; margin-bottom: 40px; }
-                    .total-final { font-size: 14px; font-weight: bold; border-top: 1px solid #000; padding-top: 5px; }
-                    .footer-wrapper { border-top: 2px dashed #000; padding-top: 10px; margin-top: 50px; }
+                    .total-final { font-size: 15px; font-weight: bold; border-top: 2px solid #000; padding-top: 5px; margin-top: 5px; }
+                    .footer-wrapper { border-top: 2px dashed #000; padding-top: 15px; margin-top: 50px; }
                     .footer-content { display: flex; justify-content: space-between; font-size: 12px; }
                     .barcode-container { margin-top: 20px; text-align: center; }
                     svg#barcode { width: 100%; max-width: 450px; height: 60px; }
                 </style>
             </head>
             <body>
-                <div class="header">
-                    <div>
-                        <div class=\"company-name\">${companyInfo.nimi || ''}</div>
-                        <div style=\"font-size:12px\">${companyInfo.katu || ''}<br>${companyInfo.postinro || ''} ${companyInfo.toimipaikka || ''}</div>
+                <div class="header-top">
+                    <div class="company-info">
+                        <div class="company-name">${companyInfo.nimi || ''}</div>
+                        <div>${companyInfo.katu || ''}</div>
+                        <div>${companyInfo.postinro || ''} ${companyInfo.toimipaikka || ''}</div>
+                        <div style="margin-top:5px">Y-tunnus: ${companyInfo.y_tunnus || '-'}</div>
+                        ${companyInfo.puhelin ? `<div>Puh: ${companyInfo.puhelin}</div>` : ''}
+                        ${companyInfo.email ? `<div>Email: ${companyInfo.email}</div>` : ''}
                     </div>
-                    <div class=\"meta-box\">
-                        <div class=\"meta-row\"><span class=\"meta-label\">PÄIVÄMÄÄRÄ:</span> <span>${billDate}</span></div>
-                        <div class=\"meta-row\"><span class=\"meta-label\">LASKUN NRO:</span> <span>${invoiceNum}</span></div>
-                        <div class=\"meta-row\"><span class=\"meta-label\">VIITENUMERO:</span> <span>${refNum}</span></div>
-                        <div class=\"meta-row\" style=\"margin-top:10px\"><span class=\"meta-label\">ERÄPÄIVÄ:</span> <span>${dueDate}</span></div>
+                    <div class="meta-box">
+                        <div class="header-title" style="text-align:right; margin-bottom:15px">LASKU</div>
+                        <div class="meta-row"><span class="meta-label">PÄIVÄMÄÄRÄ:</span> <span>${billDate}</span></div>
+                        <div class="meta-row"><span class="meta-label">LASKUN NRO:</span> <span>${invoiceNum}</span></div>
+                        <div class="meta-row"><span class="meta-label">VIITENUMERO:</span> <span>${refNum}</span></div>
+                        <div class="meta-row" style="margin-top:5px"><span class="meta-label">ERÄPÄIVÄ:</span> <span>${dueDate}</span></div>
                     </div>
                 </div>
-                <div class=\"recipient\"><b>${inv.customerName || inv.customer_name}</b><br>${(inv.billingAddress || inv.billing_address || '').replace(',', '<br>')}</div>
+
+                <div class="recipient"><b>${inv.customerName || inv.customer_name}</b><br>${(inv.billingAddress || inv.billing_address || '').replace(',', '<br>')}</div>
                 <table>
-                    <thead><tr><th style=\"border: 1px solid #999; padding: 6px 8px;\">KUVAUS</th><th style=\"text-align:right; border: 1px solid #999; padding: 6px 8px;\">SUMMA ${isB2C ? '(sis. ALV)' : '(alv 0%)'}</th></tr></thead>
+                    <thead><tr><th>KUVAUS</th><th style="text-align:right">SUMMA</th></tr></thead>
                     <tbody>${rowsHtml}</tbody>
                 </table>
-                <div class=\"totals-section\">
-                    <div style=\"width:250px\">
-                        ${!isB2C ? `<div style=\"display:flex;justify-content:space-between\"><span>VEROTON:</span><span>${inv.totalSum.toFixed(2)} €</span></div>` : ''}
-                        <div class=\"total-final\" style=\"display:flex;justify-content:space-between\"><span>YHTEENSÄ:</span><span>${totalGross.toFixed(2)} €</span></div>
+                <div class="totals-section">
+                    <div style="width:250px">
+                        ${!isB2C ? `<div style="display:flex;justify-content:space-between"><span>VEROTON:</span><span>${inv.totalSum.toFixed(2)} €</span></div>` : ''}
+                        <div class="total-final" style="display:flex;justify-content:space-between"><span>YHTEENSÄ:</span><span>${totalGross.toFixed(2)} €</span></div>
                     </div>
                 </div>
-                <div class=\"footer-wrapper\">
-                    <div class=\"footer-content\">
+                <div class="footer-wrapper">
+                    <div class="footer-content">
                         <div><b>Saaja:</b> ${companyInfo.nimi || ''}<br><b>IBAN:</b> ${companyInfo.iban || ''}</div>
-                        <div style=\"text-align:right\"><b>Viite:</b> ${refNum}<br><b>Eräpäivä:</b> ${dueDate}<br><b>Summa:</b> ${totalGross.toFixed(2)} €</div>
+                        <div style="text-align:right"><b>Viite:</b> ${refNum}<br><b>Eräpäivä:</b> ${dueDate}<br><b>Summa:</b> ${totalGross.toFixed(2)} €</div>
                     </div>
-                    ${virtualBarcode ? `<div class=\"barcode-container\"><svg id=\"barcode\"></svg><div style=\"font-family:monospace;margin-top:5px\">${virtualBarcode}</div></div>` : ''}
+                    ${virtualBarcode ? `<div class="barcode-container"><svg id="barcode"></svg><div style="font-family:monospace;margin-top:5px">${virtualBarcode}</div></div>` : ''}
                 </div>
                 <script>
                     window.onload = function() {
-                        if (\"${virtualBarcode}\") JsBarcode(\"#barcode\", \"${virtualBarcode}\", {format: \"CODE128\", width: 1.5, height: 40, displayValue: false});
+                        if ("${virtualBarcode}") JsBarcode("#barcode", "${virtualBarcode}", {format: "CODE128", width: 1.5, height: 40, displayValue: false});
                         setTimeout(() => { window.print(); }, 800);
                     };
                 </script>

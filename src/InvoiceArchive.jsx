@@ -13,8 +13,10 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
     const [selectedCustomer, setSelectedCustomer] = useState('');
     const [dateRange, setDateRange] = useState({ start: '', end: '' });
     
-    // MUOKKAUSTILA
+    // TILAT MODAALEILLE
     const [editingInvoice, setEditingInvoice] = useState(null);
+    const [creditModal, setCreditModal] = useState(null); // { invoice: inv, reason: '' }
+    const [cancelModal, setCancelModal] = useState(null); // UUSI: Mitätöinnin syy { invoice: inv, reason: '' }
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -99,19 +101,36 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
         });
     };
 
-    const cancelInvoice = (inv) => {
-        requestConfirm("Mitätöidäänkö lasku?", async () => {
-            await updateDoc(doc(db, "invoices", inv.id), { status: 'cancelled' });
+    // --- MITÄTÖINTI (UUSI LOGIIKKA) ---
+    const initiateCancel = (inv) => {
+        setCancelModal({ invoice: inv, reason: '' });
+    };
+
+    const performCancelInvoice = async () => {
+        if (!cancelModal || !cancelModal.invoice) return;
+        const inv = cancelModal.invoice;
+        const reason = cancelModal.reason;
+
+        try {
+            await updateDoc(doc(db, "invoices", inv.id), { 
+                status: 'cancelled',
+                cancel_reason: reason // Tallennetaan syy
+            });
             showNotification("Lasku mitätöity.", "info");
-        });
+            setCancelModal(null);
+        } catch (e) {
+            showNotification("Virhe: " + e.message, "error");
+        }
     };
 
     const handleUpdateInvoice = async () => {
         if (!editingInvoice) return;
-        // Lasketaan loppusumma uudestaan verollisena
         const newTotal = editingInvoice.rows.reduce((sum, r) => sum + (r.type === 'row' ? parseFloat(r.total || 0) : 0), 0);
 
         await updateDoc(doc(db, "invoices", editingInvoice.id), {
+            invoice_number: editingInvoice.invoice_number,
+            date: editingInvoice.date,
+            due_date: editingInvoice.due_date,
             customer_name: editingInvoice.customer_name,
             billing_address: editingInvoice.billing_address,
             rows: editingInvoice.rows,
@@ -147,32 +166,49 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
         });
     };
 
-    const createCreditNote = async (inv) => {
-        requestConfirm("Luodaanko hyvityslasku?", async () => {
-            const creditRows = inv.rows.map(r => ({ ...r, total: -r.total }));
+    // --- HYVITYSLASKUN LOGIIKKA ---
+    const initiateCreditNote = (inv) => {
+        setCreditModal({ invoice: inv, reason: '' });
+    };
+
+    const performCreateCreditNote = async () => {
+        if (!creditModal || !creditModal.invoice) return;
+        const inv = creditModal.invoice;
+        const reason = creditModal.reason;
+
+        try {
+            const creditRows = inv.rows.map(r => ({ ...r, total: -Math.abs(r.total) })); 
+            const newTotal = -Math.abs(inv.total_sum);
+            
             await addDoc(collection(db, "invoices"), {
-                title: `HYVITYSLASKU - ${inv.title}`, 
+                title: `HYVITYSLASKU`, 
+                invoice_number: "HYV-" + inv.invoice_number, 
                 customer_name: inv.customer_name, 
                 customer_type: inv.customer_type, 
                 billing_address: inv.billing_address, 
                 month: inv.month, 
-                date: new Date().toISOString().slice(0, 10), 
+                date: new Date().toISOString().slice(0, 10),
+                due_date: new Date().toISOString().slice(0, 10), 
                 rows: creditRows, 
-                total_sum: -inv.total_sum, 
+                total_sum: newTotal, 
                 status: 'paid', 
                 type: 'credit_note', 
+                credit_reason: reason, 
                 original_invoice_id: inv.id, 
                 created_at: serverTimestamp()
             });
-            await updateDoc(doc(db, "invoices", inv.id), { status: 'credited' });
+            
             showNotification("Hyvityslasku luotu.", "success");
-        });
+            setCreditModal(null);
+        } catch(e) {
+            showNotification("Virhe: " + e.message, "error");
+        }
     };
 
-const handlePrint = (inv) => {
+    const handlePrint = (inv) => {
         const invoiceNum = inv.invoice_number || "Luonnos";
         const refNum = generateReferenceNumber(invoiceNum);
-        const dueDate = calculateDueDate(inv);
+        const dueDate = inv.due_date ? new Date(inv.due_date).toLocaleDateString('fi-FI') : calculateDueDate(inv);
         const billDate = new Date(inv.date).toLocaleDateString('fi-FI');
         const isB2C = inv.customer_type === 'b2c';
         const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
@@ -207,49 +243,61 @@ const handlePrint = (inv) => {
                 <style>
                     @page { size: A4; margin: 10mm 15mm; }
                     body { font-family: Arial, sans-serif; font-size: 13px; color: #000; line-height: 1.3; padding: 10px; }
-                    .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
-                    .company-name { font-size: 18px; font-weight: bold; text-transform: uppercase; }
-                    .meta-box { text-align: left; width: 300px; }
-                    .meta-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
-                    .meta-label { font-weight: bold; font-size: 11px; }
-                    .recipient { margin-top: 10px; margin-bottom: 30px; border: 1px solid #aaa; padding: 15px; width: 300px; min-height: 80px;}
+                    .header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; }
+                    .header-title { font-size: 24px; font-weight: bold; letter-spacing: 2px; }
+                    .company-info { font-size: 14px; }
+                    .company-name { font-size: 18px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
+                    .meta-box { text-align: left; width: 280px; }
+                    .meta-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+                    .meta-label { font-weight: bold; font-size: 12px; }
+                    .recipient { margin-top: 10px; margin-bottom: 40px; border: 1px solid #aaa; padding: 15px; width: 300px; min-height: 80px;}
                     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                    th { text-align: left; background-color: #ddd; padding: 6px 8px; border: 1px solid #999; font-size: 11px; }
-                    td { padding: 6px 8px; border: 1px solid #ccc; vertical-align: top; }
+                    th { text-align: left; background-color: #ddd; padding: 8px; border: 1px solid #999; font-size: 11px; text-transform: uppercase;}
+                    td { padding: 8px; border: 1px solid #ccc; vertical-align: top; }
                     .row-header td { background-color: #f0f0f0; font-weight: bold; border-top: 2px solid #666; }
                     .small-text { font-size: 11px; color: #444; display: block; font-style: italic; }
                     .totals-section { display: flex; justify-content: flex-end; margin-bottom: 40px; }
-                    .total-final { font-size: 14px; font-weight: bold; border-top: 1px solid #000; padding-top: 5px; }
-                    .footer-wrapper { border-top: 2px dashed #000; padding-top: 10px; margin-top: 50px; }
+                    .total-final { font-size: 15px; font-weight: bold; border-top: 2px solid #000; padding-top: 5px; margin-top: 5px; }
+                    .footer-wrapper { border-top: 2px dashed #000; padding-top: 15px; margin-top: 50px; }
                     .footer-content { display: flex; justify-content: space-between; font-size: 12px; }
                     .barcode-container { margin-top: 20px; text-align: center; }
                     svg#barcode { width: 100%; max-width: 450px; height: 60px; }
                 </style>
             </head>
             <body>
-                <div class="header">
-                    <div>
+                <div class="header-top">
+                    <div class="company-info">
                         <div class="company-name">${companyInfo.nimi || ''}</div>
-                        <div style="font-size:12px">${companyInfo.katu || ''}<br>${companyInfo.postinro || ''} ${companyInfo.toimipaikka || ''}</div>
+                        <div>${companyInfo.katu || ''}</div>
+                        <div>${companyInfo.postinro || ''} ${companyInfo.toimipaikka || ''}</div>
+                        <div style="margin-top:5px">Y-tunnus: ${companyInfo.y_tunnus || '-'}</div>
+                        ${companyInfo.puhelin ? `<div>Puh: ${companyInfo.puhelin}</div>` : ''}
+                        ${companyInfo.email ? `<div>Email: ${companyInfo.email}</div>` : ''}
                     </div>
                     <div class="meta-box">
+                        <div class="header-title" style="text-align:right; margin-bottom:15px">${inv.total_sum < 0 ? 'HYVITYSLASKU' : 'LASKU'}</div>
+                        ${inv.credit_reason ? `<div style="font-size:11px; text-align:right; margin-bottom:10px; font-style:italic;">Syy: ${inv.credit_reason}</div>` : ''}
                         <div class="meta-row"><span class="meta-label">PÄIVÄMÄÄRÄ:</span> <span>${billDate}</span></div>
                         <div class="meta-row"><span class="meta-label">LASKUN NRO:</span> <span>${invoiceNum}</span></div>
                         <div class="meta-row"><span class="meta-label">VIITENUMERO:</span> <span>${refNum}</span></div>
-                        <div class="meta-row" style="margin-top:10px"><span class="meta-label">ERÄPÄIVÄ:</span> <span>${dueDate}</span></div>
+                        <div class="meta-row" style="margin-top:5px"><span class="meta-label">ERÄPÄIVÄ:</span> <span>${dueDate}</span></div>
                     </div>
                 </div>
+
                 <div class="recipient"><b>${inv.customer_name}</b><br>${inv.billing_address ? inv.billing_address.replace(',', '<br>') : ''}</div>
+                
                 <table>
                     <thead><tr><th>KUVAUS</th><th style="text-align:right">SUMMA</th></tr></thead>
                     <tbody>${rowsHtml}</tbody>
                 </table>
+                
                 <div class="totals-section">
                     <div style="width:250px">
                         ${!isB2C ? `<div style="display:flex;justify-content:space-between"><span>VEROTON:</span><span>${(inv.total_sum / alvDivisor).toFixed(2)} €</span></div>` : ''}
                         <div class="total-final" style="display:flex;justify-content:space-between"><span>YHTEENSÄ:</span><span>${inv.total_sum.toFixed(2)} €</span></div>
                     </div>
                 </div>
+                
                 <div class="footer-wrapper">
                     <div class="footer-content">
                         <div><b>Saaja:</b> ${companyInfo.nimi || ''}<br><b>IBAN:</b> ${companyInfo.iban || ''}</div>
@@ -282,7 +330,7 @@ const handlePrint = (inv) => {
 
     const filteredInvoices = invoices.filter(inv => {
         const txt = searchText.toLowerCase();
-        const matchText = !searchText || inv.customer_name.toLowerCase().includes(txt) || inv.title.toLowerCase().includes(txt) || (inv.invoice_number && inv.invoice_number.includes(txt));
+        const matchText = !searchText || inv.customer_name.toLowerCase().includes(txt) || (inv.title && inv.title.toLowerCase().includes(txt)) || (inv.invoice_number && inv.invoice_number.includes(txt));
         const matchCustomer = !selectedCustomer || inv.customer_name === selectedCustomer;
         let matchDate = true; if (dateRange.start && dateRange.end) matchDate = inv.date >= dateRange.start && inv.date <= dateRange.end;
         return matchText && matchCustomer && matchDate;
@@ -318,11 +366,14 @@ const handlePrint = (inv) => {
                                 {inv.status === 'open' && <span style={{background:'#ff9800', color:'black', padding:'2px 5px', borderRadius:'3px', fontSize:'0.7rem', fontWeight:'bold'}}>AVOIN / LUONNOS</span>}
                                 {inv.status === 'sent' && <span style={{background:'#2196f3', color:'white', padding:'2px 5px', borderRadius:'3px', fontSize:'0.7rem', fontWeight:'bold'}}>LÄHETETTY</span>}
                                 {inv.status === 'paid' && <span style={{background:'#4caf50', color:'white', padding:'2px 5px', borderRadius:'3px', fontSize:'0.7rem', fontWeight:'bold'}}>MAKSETTU</span>}
+                                {inv.type === 'credit_note' && <span style={{background:'#d32f2f', color:'white', padding:'2px 5px', borderRadius:'3px', fontSize:'0.7rem', fontWeight:'bold'}}>HYVITYS</span>}
+                                {inv.status === 'cancelled' && <span style={{background:'#333', border:'1px solid #d32f2f', color:'#d32f2f', padding:'2px 5px', borderRadius:'3px', fontSize:'0.7rem', fontWeight:'bold'}}>MITÄTÖITY</span>}
                             </div>
                             <div style={{fontSize:'0.8rem', color:'#aaa'}}>{inv.date} • {inv.total_sum.toFixed(2)} €</div>
+                            {inv.cancel_reason && <div style={{fontSize:'0.8rem', color:'#d32f2f', fontStyle:'italic', marginTop:'3px'}}>Syy: {inv.cancel_reason}</div>}
                         </div>
                         <div style={{display:'flex', gap:'5px'}}>
-                            <button onClick={() => handlePrint(inv)} className="icon-btn">🖨️</button>
+                            <button onClick={() => handlePrint(inv)} className="icon-btn" title="Tulosta">🖨️</button>
                             
                             {inv.status === 'open' && (
                                 <button onClick={() => setEditingInvoice(inv)} className="icon-btn" style={{color:'#ff9800'}} title="Muokkaa">✏️</button>
@@ -333,20 +384,41 @@ const handlePrint = (inv) => {
                             {inv.status === 'sent' && (
                                 <button onClick={() => markAsPaid(inv)} className="icon-btn" style={{color:'#4caf50'}} title="Merkitse maksetuksi">✅</button>
                             )}
-                            {inv.status === 'open' && (
-                                <button onClick={() => cancelInvoice(inv)} className="icon-btn" style={{color:'#d32f2f'}} title="Mitätöi">❌</button>
+                            {/* HYVITYSLASKU-NAPPI näkyy vain lähetetyille/maksetuille ja jos ei ole jo hyvityslasku */}
+                            {(inv.status === 'sent' || inv.status === 'paid') && inv.type !== 'credit_note' && (
+                                <button onClick={() => initiateCreditNote(inv)} className="icon-btn" style={{color:'#e91e63'}} title="Luo hyvityslasku">↩️</button>
                             )}
-                            <button onClick={() => deleteInvoicePermanently(inv)} className="icon-btn" style={{color:'#ff5252'}} title="Poista">🗑️</button>
+                            {/* MITÄTÖINTI NAPPI */}
+                            {inv.status === 'open' && (
+                                <button onClick={() => initiateCancel(inv)} className="icon-btn" style={{color:'#d32f2f'}} title="Mitätöi">❌</button>
+                            )}
+                            <button onClick={() => deleteInvoicePermanently(inv)} className="icon-btn" style={{color:'#ff5252'}} title="Poista kokonaan">🗑️</button>
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* MUOKKAUSMODAALI */}
+            {/* MUOKKAUSMODAALI (LAAJENNETTU) */}
             {editingInvoice && (
                 <div className="modal-overlay">
                     <div className="modal-content" style={{maxWidth:'600px'}}>
                         <h3>Muokkaa laskua #{editingInvoice.invoice_number}</h3>
+                        
+                        <div className="form-row">
+                            <div>
+                                <label>Laskun numero</label>
+                                <input value={editingInvoice.invoice_number || ''} onChange={e => setEditingInvoice({...editingInvoice, invoice_number: e.target.value})} />
+                            </div>
+                            <div>
+                                <label>Päiväys</label>
+                                <input type="date" value={editingInvoice.date} onChange={e => setEditingInvoice({...editingInvoice, date: e.target.value})} />
+                            </div>
+                            <div>
+                                <label>Eräpäivä</label>
+                                <input type="date" value={editingInvoice.due_date || ''} onChange={e => setEditingInvoice({...editingInvoice, due_date: e.target.value})} />
+                            </div>
+                        </div>
+
                         <div className="form-group">
                             <label>Asiakas</label>
                             <input value={editingInvoice.customer_name} onChange={e => setEditingInvoice({...editingInvoice, customer_name: e.target.value})} />
@@ -355,6 +427,7 @@ const handlePrint = (inv) => {
                             <label>Osoite</label>
                             <input value={editingInvoice.billing_address} onChange={e => setEditingInvoice({...editingInvoice, billing_address: e.target.value})} />
                         </div>
+                        
                         <label>Rivit (Hinnat sis. ALV):</label>
                         <div style={{maxHeight:'300px', overflowY:'auto', border:'1px solid #444', padding:'10px', borderRadius:'6px', marginBottom:'15px'}}>
                             {editingInvoice.rows.map((row, idx) => row.type === 'row' && (
@@ -378,6 +451,56 @@ const handlePrint = (inv) => {
                         <div style={{display:'flex', gap:'10px'}}>
                             <button onClick={handleUpdateInvoice} className="save-btn">Tallenna</button>
                             <button onClick={() => setEditingInvoice(null)} className="back-btn">Peruuta</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* HYVITYSLASKU MODAALI */}
+            {creditModal && (
+                <div className="modal-overlay">
+                    <div className="modal-content" style={{maxWidth:'500px'}}>
+                        <h3>Luo hyvityslasku</h3>
+                        <p style={{fontSize:'0.9rem', color:'#aaa'}}>Lasku #{creditModal.invoice.invoice_number} hyvitetään. Summa muuttuu negatiiviseksi.</p>
+                        
+                        <div className="form-group">
+                            <label>Syy hyvitykselle (Näkyy laskulla):</label>
+                            <input 
+                                value={creditModal.reason} 
+                                onChange={e => setCreditModal({...creditModal, reason: e.target.value})} 
+                                placeholder="Esim. Virheellinen laskutus, Asiakaspalautus..."
+                                autoFocus
+                            />
+                        </div>
+
+                        <div style={{display:'flex', gap:'10px', marginTop:'20px'}}>
+                            <button onClick={performCreateCreditNote} className="save-btn">Luo Hyvityslasku</button>
+                            <button onClick={() => setCreditModal(null)} className="back-btn">Peruuta</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MITÄTÖINTI MODAALI */}
+            {cancelModal && (
+                <div className="modal-overlay">
+                    <div className="modal-content" style={{maxWidth:'500px'}}>
+                        <h3 style={{color: '#d32f2f'}}>Mitätöi lasku</h3>
+                        <p style={{fontSize:'0.9rem', color:'#aaa'}}>Tämä merkitsee laskun mitätöidyksi arkistossa. Käytä vain jos laskua ei ole lähetetty.</p>
+                        
+                        <div className="form-group">
+                            <label>Mitätöinnin syy (Pakollinen):</label>
+                            <input 
+                                value={cancelModal.reason} 
+                                onChange={e => setCancelModal({...cancelModal, reason: e.target.value})} 
+                                placeholder="Esim. Tuplakappale, Testi, Väärä asiakas..."
+                                autoFocus
+                            />
+                        </div>
+
+                        <div style={{display:'flex', gap:'10px', marginTop:'20px'}}>
+                            <button onClick={performCancelInvoice} className="save-btn" style={{background:'#d32f2f'}} disabled={!cancelModal.reason}>Vahvista Mitätöinti</button>
+                            <button onClick={() => setCancelModal(null)} className="back-btn">Peruuta</button>
                         </div>
                     </div>
                 </div>
