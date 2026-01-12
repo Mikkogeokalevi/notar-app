@@ -40,7 +40,7 @@ const Login = () => {
     }}>
       <div className="card-box" style={{maxWidth: '400px', width: '100%', textAlign: 'center'}}>
         <h2 style={{marginTop: 0}}>{isRegistering ? 'Luo tunnus' : 'Kirjaudu sisään 2'}</h2>
-        <p style={{color: '#aaa', marginBottom: '20px'}}>Kärkölän Notar Oy</p>
+        <p style={{color: '#aaa', marginBottom: '20px'}}>Kärkölän Notar Oy aaa</p>
         
         <form onSubmit={handleLogin}>
           <div className="form-group">
