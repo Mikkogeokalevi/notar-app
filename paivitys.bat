@@ -1,31 +1,16 @@
 @echo off
-echo ==========================================
-echo      NOTAR APP - PAIVITYS GITHUBIIN
-echo ==========================================
-echo.
-
-echo 1. Rakennetaan sovellus (BUILD)...
-call npm run build
-IF %ERRORLEVEL% NEQ 0 (
-    echo VIRHE: Build epaonnistui! Keskeytetaan.
-    pause
-    exit /b
-)
-
-echo.
-echo 2. Lahetetaan GitHubiin...
+echo --- Tallennetaan muutokset... ---
 git add .
-git commit -m "Paivitys %date% klo %time%"
-git push origin main
-git subtree push --prefix dist origin gh-pages
+git commit -m "Päivitys ja julkaisu"
 
 echo.
-echo ==========================================
-echo      PAIVITYS VALMIS!
-echo ==========================================
+echo --- Lähetetään koodit GitHubiin... ---
+git push
 
-REM --- TÄMÄ ON UUSI OSIO: LOKIKIRJAUS ---
-echo PÄIVITYS TEHTY: %date% klo %time% >> deploy_log.txt
-echo ----------------------------------- >> deploy_log.txt
+echo.
+echo --- Rakennetaan ja julkaistaan nettisivu... ---
+call npm run deploy
 
+echo.
+echo --- VALMIS! Nyt voit sulkea ikkunan. ---
 pause
