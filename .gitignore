@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+ 
+_BACKUPS/ 
+deploy_log.txt 
