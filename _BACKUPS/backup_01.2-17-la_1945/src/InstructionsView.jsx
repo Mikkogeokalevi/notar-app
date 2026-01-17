@@ -1,103 +1,28 @@
-import React, { useState } from 'react';
+import React from 'react';
 import './App.css';
 
 const InstructionsView = ({ onBack }) => {
-    const [showHistory, setShowHistory] = useState(false);
-
-    // VERSIOHISTORIA - Uusin aina ensin
-    const versions = [
-        {
-            version: "1.5",
-            date: "17.01.2026",
-            changes: [
-                "Laskuarkiston laajennettu muokkaus: Voit nyt lisätä, poistaa ja muokata rivejä myös jo luoduissa (avoimissa) laskuissa. Tämä onnistuu 'Muokkaa' (✏️) -toiminnolla.",
-                "Älykäs hinnanmuokkaus: Yritysasiakkaille (B2B) hinnat syötetään nyt muokkauksessa verottomana (ALV 0%), ja sovellus laskee verollisen hinnan. Yksityisille (B2C) hinnat syötetään verollisena.",
-                "Käyttöliittymä: Muokkausikkunat skaalautuvat paremmin pienille näytöille ja sisältöä voi rullata."
-            ]
-        },
-        {
-            version: "1.4",
-            date: "17.01.2026",
-            changes: [
-                "Laskuluonnosten hallinta: Laskutusnäkymässä on nyt valintaruudut. Voit valita listalta mitkä laskut luodaan, ja jättää loput odottamaan.",
-                "Luonnosten muokkaus: Voit muokata ja poistaa laskuluonnoksia 'kynä' ja 'roskakori' -painikkeilla ennen laskun virallista luontia.",
-                "ALV-erittely: Laskuilla ja esikatselussa näkyy nyt selkeästi Veroton summa, ALV:n osuus ja Yhteissumma eriteltynä."
-            ]
-        },
-        {
-            version: "1.3",
-            date: "15.01.2026",
-            changes: [
-                "Hyvityslaskut: Mahdollisuus luoda hyvityslasku suoraan vanhasta laskusta ja kirjata sille syy.",
-                "Mitätöinti: Virheellisen laskun mitätöinti arkistossa ilman hyvityslaskun luontia (jos laskua ei ole lähetetty).",
-                "Raportointi: Uusi näkymä, jossa graafit myynnistä ja työjakaumasta sekä Excel-lataus."
-            ]
-        },
-        {
-            version: "1.2",
-            date: "12.01.2026",
-            changes: [
-                "PWA-tuki: Ohjeet sovelluksen asentamiseksi puhelimen kotinäytölle.",
-                "Ulkoasu: Tumma teema ja parannettu luettavuus.",
-                "Laskun tulostus: Y-tunnus ja yhteystiedot lisätty viralliseen PDF-tulosteeseen."
-            ]
-        },
-        {
-            version: "1.0",
-            date: "01.01.2026",
-            changes: [
-                "Julkaisuversio: Työkirjaukset, Asiakasrekisteri, Laskutusautomaatio ja Arkisto."
-            ]
-        }
-    ];
-
-    const latestVersion = versions[0];
-    const olderVersions = versions.slice(1);
-
     return (
         <div className="admin-section">
             <button onClick={onBack} className="back-btn" style={{marginBottom:'20px'}}>&larr; Takaisin</button>
             
             <div className="card-box" style={{textAlign:'left', lineHeight:'1.6'}}>
                 <h1 style={{textAlign:'center', color:'#2196f3'}}>📖 SOVELLUKSEN KÄYTTÖOPAS </h1>
-                <p style={{textAlign:'center', fontStyle:'italic', color:'#aaa'}}>Kärkölän Notar Oy - Versio {latestVersion.version}</p>
+                <p style={{textAlign:'center', fontStyle:'italic', color:'#aaa'}}>Kärkölän Notar Oy - Versio 1.3</p>
                 
-                {/* VIIMEISIN PÄIVITYS (AINA NÄKYVISSÄ) */}
-                <div style={{background: '#2c2c2c', padding: '15px', borderRadius: '8px', border: '1px solid #4caf50', marginBottom: '20px'}}>
-                    <h3 style={{marginTop: 0, color: '#4caf50'}}>🚀 UUTTA VERSIOSSA {latestVersion.version} <span style={{fontSize:'0.8rem', color:'#aaa', fontWeight:'normal'}}>({latestVersion.date})</span></h3>
+                {/* UUSI OSIO: VIIMEISIMMÄT PÄIVITYKSET */}
+                <div style={{background: '#2c2c2c', padding: '15px', borderRadius: '8px', border: '1px solid #4caf50', marginBottom: '30px'}}>
+                    <h3 style={{marginTop: 0, color: '#4caf50'}}>🚀 UUTTA TÄSSÄ VERSIOSSA</h3>
                     <ul style={{margin: 0, paddingLeft: '20px'}}>
-                        {latestVersion.changes.map((change, idx) => (
-                            <li key={idx} style={{marginBottom: '5px'}}>{change}</li>
-                        ))}
+                        <li style={{marginBottom: '5px'}}><b>Hyvitys & Mitätöinti:</b> Selkeät toiminnot virheellisten laskujen käsittelyyn syykoodeineen.</li>
+                        <li style={{marginBottom: '5px'}}><b>Laskun muokkaus:</b> Voit nyt korjata myös laskun numeron, päiväyksen ja eräpäivän jälkikäteen.</li>
+                        <li style={{marginBottom: '5px'}}><b>Raportointi:</b> Uusi näkymä, jossa graafit myynnistä ja työjakaumasta sekä Excel-lataus.</li>
+                        <li style={{marginBottom: '5px'}}><b>Ulkoasu:</b> Laskuille lisätty virallinen "LASKU"-otsikko, Y-tunnus ja yhteystiedot.</li>
                     </ul>
                 </div>
 
-                {/* VERSIOHISTORIA NAPPI */}
-                <button 
-                    onClick={() => setShowHistory(!showHistory)} 
-                    className="back-btn" 
-                    style={{width:'100%', marginBottom:'30px', borderStyle:'dashed', borderColor:'#666', color:'#aaa', fontSize:'0.9rem'}}
-                >
-                    {showHistory ? 'Piilota vanhat versiot 🔼' : 'Näytä versiohistoria (Mitä uutta vanhoissa versioissa?) 🔽'}
-                </button>
-
-                {/* VANHAT VERSIOT (PIILOTETTAVA) */}
-                {showHistory && (
-                    <div style={{marginBottom:'30px', borderLeft:'2px solid #444', paddingLeft:'15px', background:'#222', padding:'15px', borderRadius:'0 8px 8px 0'}}>
-                        {olderVersions.map((v, i) => (
-                            <div key={i} style={{marginBottom:'20px'}}>
-                                <h4 style={{margin:'0 0 5px 0', color:'#ccc'}}>Versio {v.version} <span style={{fontSize:'0.8rem', fontWeight:'normal', color:'#888'}}>({v.date})</span></h4>
-                                <ul style={{margin: 0, paddingLeft: '20px', fontSize:'0.9rem', color:'#aaa'}}>
-                                    {v.changes.map((c, idx) => <li key={idx}>{c}</li>)}
-                                </ul>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
                 <hr style={{borderColor:'#444', margin:'20px 0'}} />
 
-                {/* TÄSTÄ ALKAA VARSINAINEN OHJEKIRJA */}
                 <h2 style={{color:'#4caf50'}}>1. ASENNUS PUHELIMEEN (PWA)</h2>
                 <p>Sovellusta käytetään suoraan selaimen kautta, mutta se on suunniteltu asennettavaksi "sovelluskuvakkeeksi" puhelimen kotinäytölle.</p>
                 <ul>
@@ -121,14 +46,14 @@ const InstructionsView = ({ onBack }) => {
                     <li><b>Massakirjaus (Checkbox):</b> Näet listan vain niistä kohteista, joilla on kyseinen työ sopimuksessaan. Valitse tehdyt kohteet ja paina "Tallenna valinnat".</li>
                     <li><b>Määräperusteinen (kg):</b> Esimerkiksi hiekoituksessa syötetään käytetty määrä kiloina suoraan kohteen kohdalle.</li>
                     <li><b>Täsmäkirjaus (Lisätyöt & Liitetyöt):</b> Jos työtä ei ole vakiosopimuksessa, valitse asiakas ja kohde, kirjoita selite ja määrittele hinta (Työ ja Tarvikkeet erikseen ALV 0%).</li>
-                    <li><b>Selaa & Muokkaa:</b> Alareunan painikkeesta pääset näkemään omat kirjauksesi ("Selaa & Muokkaa kirjauksia"). Voit korjata virheitä tai poistaa turhia kirjauksia niin kauan kuin niitä ei ole vielä laskutettu.</li>
+                    <li><b>Selaa & Muokkaa:</b> Alareunan painikkeesta pääset näkemään omat kirjauksesi. Voit korjata virheitä tai poistaa turhia kirjauksia niin kauan kuin niitä ei ole vielä laskutettu.</li>
                 </ul>
 
                 <h2 style={{color:'#4caf50'}}>3. TOIMISTON OHJAUSPANEELI</h2>
                 
                 <h3>A. Asiakasrekisteri</h3>
                 <ul>
-                    <li><b>Asiakaskortti:</b> Hallinnoi yhteystietoja, laskutusosoitetta, y-tunnusta ja maksuehtoa (7pv, 14pv, 30pv tai kiinteä eräpäivä).</li>
+                    <li><b>Asiakaskortti:</b> Hallinnoi yhteystietoja, laskutusosoitetta ja maksuehtoa (7pv, 14pv, 30pv tai kiinteä eräpäivä).</li>
                     <li><b>Kohteet ja ryhmät:</b> Voit luoda asiakkaalle ryhmiä (esim. eri taloyhtiöt isännöitsijän alla) ja lisätä niihin kohteita (osoitteita).</li>
                     <li><b>Hinnoittelun hierarkia:</b> Sovellus tarkistaa hinnan ensin kohteelta. Jos kohteelle ei ole asetettu omaa hintaa, käytetään asiakkaan oletushinnastoa.</li>
                 </ul>
@@ -139,23 +64,16 @@ const InstructionsView = ({ onBack }) => {
                     <li><b>Työtehtävien hallinta:</b> Voit luoda uusia tehtäviä ja määrittää niiden tyypin (Checkbox, Kerta, KK-sopimus, kg tai Tuntityö). Voit myös poistaa käytöstä poistuneita tehtäviä.</li>
                 </ul>
 
-                <h3>C. Laskutus (Automaatio & Hallinta)</h3>
+                <h3>C. Laskutus (Automaatio)</h3>
                 <ul>
-                    <li><b>1. Generointi:</b> Valitse kuukausi ja paina "Hae laskutettavat". Sovellus kerää kaikki kyseisen kuukauden kirjaukset ja yhdistää ne asiakaskohtaisiksi laskuluonnoksiksi.</li>
-                    <li><b>2. Tarkista & Muokkaa:</b>
-                        <br />- ✏️ <b>Muokkaa luonnosta:</b> Voit avata yksittäisen laskuluonnoksen, muuttaa hintoja, tekstejä tai lisätä rivejä ennen hyväksyntää.
-                        <br />- 🗑️ <b>Poista luonnos:</b> Voit poistaa luonnoksen listalta. Työt eivät katoa tietokannasta, vaan ne jäävät odottamaan seuraavaa laskutuskertaa.
-                    </li>
-                    <li><b>3. Valitse & Hyväksy:</b>
-                        <br />- Valitse listalta ne laskut, jotka haluat luoda juuri nyt (rastita ruutu).
-                        <br />- Paina "✅ Hyväksy Valitut". Tämä luo viralliset laskut ja numeroinnin vain valituille.
-                    </li>
-                    <li><b>Yhteenveto:</b> Näet heti yläreunassa valittujen laskujen kokonaissumman (ALV 0%) ennen hyväksyntää.</li>
+                    <li><b>Generointi:</b> Valitse kuukausi ja paina "Hae laskutettavat". Sovellus kerää kaikki kyseisen kuukauden kirjaukset ja yhdistää ne asiakaskohtaisiksi laskuiksi.</li>
+                    <li><b>Yhteenveto:</b> Näet heti yläreunassa laskutettavan kokonaissumman (ALV 0%) ennen hyväksyntää.</li>
                     <li><b>KK-sopimukset:</b> Sovellus huomioi automaattisesti kaikki kiinteähintaiset kuukausisopimukset, vaikka työkirjausta ei olisi tehty.</li>
+                    <li><b>Hyväksyntä:</b> "Hyväksy & Merkitse" siirtää laskut arkistoon, lukitsee työkirjaukset laskutetuiksi ja kasvattaa laskunumerointia.</li>
                 </ul>
 
                 <h3>D. Pikalasku (Manuaalinen)</h3>
-                <p>Käytetään erillisten laskujen tekoon ilman kenttäkirjauksia (esim. pelkkä tarvikelasku tai erikoistyö).</p>
+                <p>Käytetään erillisten laskujen tekoon ilman kenttäkirjauksia.</p>
                 <ul>
                     <li><b>Asiakkaan luonti:</b> Jos kirjoitat uuden nimen pikalaskuun, järjestelmä tallentaa sen automaattisesti asiakasrekisteriin myöhempää käyttöä varten.</li>
                     <li><b>ALV-käsittely:</b> Syötä hinnat aina ALV 0%. Sovellus laskee loppusumman verollisena yrityksen asetusten mukaan.</li>
@@ -195,23 +113,19 @@ const InstructionsView = ({ onBack }) => {
                 <ul>
                     <li><b>Laskun Muokkaus (✏️):</b>
                         <br />- Voit muokata avointa laskua (Status: Avoin).
-                        <br />- <b>Muokattavat tiedot:</b> Laskun numero, Päiväys, Eräpäivä, Asiakkaan nimi, Osoite.
-                        <br />- <b>Rivitietojen muokkaus:</b> Voit lisätä uusia rivejä, poistaa rivejä tai muuttaa hintaa/tekstiä.
-                        <br />- <b>HUOM Hinnat:</b> Jos asiakas on yritys (B2B), syötä hinnat verottomana (ALV 0%). Jos yksityinen (B2C), syötä hinnat verollisena. Sovellus laskee loput.
+                        <br />- <b>Muokattavat tiedot:</b> Laskun numero, Päiväys, Eräpäivä, Asiakkaan nimi, Osoite, Laskurivit ja Hinnat.
+                        <br />- Hyödyllistä, jos huomaat kirjoitusvirheen ennen lähetystä.
                     </li>
-                    <li><b>Tilat ja Toiminnot:</b> 
+                    <li><b>Tilat:</b> 
                         <br />- 🟠 <b>Avoin:</b> Muokkaus sallittu.
                         <br />- 🔵 <b>Lähetetty (📧):</b> Lukitsee muokkauksen.
                         <br />- 🟢 <b>Maksettu (✅):</b> Merkitsee suorituksen saapuneeksi.
-                        <br />- ❌ <b>Mitätöi:</b> Merkitsee laskun mitätöidyksi (ei poista).
-                        <br />- 🗑️ <b>Poista kokonaan:</b> Poistaa laskun ja palauttaa työt tekemättömiksi (vain jos pakko).
                     </li>
-                    <li><b>Tulostus (🖨️):</b> Luo virallisen PDF-laskun viivakoodilla. Sisältää nyt myös Y-tunnuksen ja yhteystiedot.</li>
+                    <li><b>Tulostus (🖨️):</b> Luo virallisen PDF-laskun viivakoodilla. Sisältää Y-tunnuksen ja yhteystiedot.</li>
                 </ul>
 
                 <h2 style={{color:'#4caf50'}}>5. TIETOTURVA</h2>
                 <p>Sovellus vaatii kirjautumisen sähköpostilla ja salasanalla. Istunto säilyy laitteella, joten sisäänkirjautumista ei tarvitse tehdä jatkuvasti uudelleen, ellei käyttäjä kirjaudu ulos ohjauspaneelista.</p>
-                <p>Datan varmuuskopiointi onnistuu "Yrityksen Asetukset" -sivulta (Admin-toiminto), josta koko tietokannan voi ladata JSON-tiedostona omalle koneelle turvaan.</p>
             </div>
         </div>
     );
