@@ -451,8 +451,6 @@ const InvoiceView = ({ onBack, showNotification }) => {
 
         // Tulostukseen tarvitaan verollinen summa
         const totalGross = inv.totalSum * alvMultiplier;
-        const totalNet = inv.totalSum;
-        const totalVat = totalGross - totalNet;
 
         const virtualBarcode = generateVirtualBarcode(
             companyInfo.iban, 
@@ -480,7 +478,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
         const rowsHtml = inv.rows.map(r => {
             if (r.type === 'header') return `<tr class="row-header"><td colspan="2">${r.text}</td></tr>`;
             let displayPrice = isB2C ? r.total : r.total / alvMultiplier;
-            return `<tr><td>${r.text} ${r.details ? `<span class="small-text">${r.details}</span>` : ''}</td><td style="text-align:right">${displayPrice.toFixed(2)} €</td></tr>`;
+            return `<tr><td>${r.text} ${r.details ? `<span class="small-text">${r.details}</span>` : ''}</td><td style="text-align:right; vertical-align:top;">${displayPrice.toFixed(2)} €</td></tr>`;
         }).join('');
 
         doc.open();
@@ -491,67 +489,118 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 <title>Lasku ${invoiceNum}</title>
                 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
                 <style>
-                    @page { size: A4; margin: 10mm 15mm; }
-                    body { font-family: Arial, sans-serif; font-size: 13px; color: #000; line-height: 1.3; padding: 10px; }
-                    .header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; }
-                    .header-title { font-size: 24px; font-weight: bold; letter-spacing: 2px; }
-                    .company-info { font-size: 14px; }
-                    .company-name { font-size: 18px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
-                    .meta-box { text-align: left; width: 280px; }
-                    .meta-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-                    .meta-label { font-weight: bold; font-size: 12px; }
-                    .recipient { margin-top: 10px; margin-bottom: 40px; border: 1px solid #aaa; padding: 15px; width: 300px; min-height: 80px;}
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                    th { text-align: left; background-color: #ddd; padding: 8px; border: 1px solid #999; font-size: 11px; text-transform: uppercase;}
-                    td { padding: 8px; border: 1px solid #ccc; vertical-align: top; }
+                    @page { size: A4; margin: 15mm; }
+                    body { font-family: Arial, sans-serif; font-size: 13px; color: #000; line-height: 1.3; margin: 0; }
+                    
+                    /* TÄRKEÄIN: Taulukon rakenne */
+                    table { width: 100%; border-collapse: collapse; }
+                    
+                    /* Nämä toistuvat joka sivulla */
+                    thead { display: table-header-group; }
+                    tfoot { display: table-footer-group; }
+                    
+                    /* Solujen tyylit */
+                    td, th { padding: 5px 0; vertical-align: top; }
+                    
+                    /* Laskurivien erillistyylit */
+                    .invoice-data th { text-align: left; background-color: #ddd; padding: 8px; border: 1px solid #999; font-size: 11px; text-transform: uppercase; }
+                    .invoice-data td { padding: 8px; border: 1px solid #ccc; }
+                    .invoice-data tr { page-break-inside: avoid; } /* Estää rivin katkeamisen */
+
                     .row-header td { background-color: #f0f0f0; font-weight: bold; border-top: 2px solid #666; }
                     .small-text { font-size: 11px; color: #444; display: block; font-style: italic; }
-                    .totals-section { display: flex; justify-content: flex-end; margin-bottom: 40px; }
-                    .total-final { font-size: 15px; font-weight: bold; border-top: 2px solid #000; padding-top: 5px; margin-top: 5px; }
-                    .footer-wrapper { border-top: 2px dashed #000; padding-top: 15px; margin-top: 50px; }
-                    .footer-content { display: flex; justify-content: space-between; font-size: 12px; }
-                    .barcode-container { margin-top: 20px; text-align: center; }
-                    svg#barcode { width: 100%; max-width: 450px; height: 60px; }
+
+                    /* HEADER SISÄLTÖ */
+                    .header-content { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+                    .company-name { font-size: 18px; font-weight: bold; text-transform: uppercase; }
+                    .header-title { font-size: 24px; font-weight: bold; letter-spacing: 2px; text-align: right; }
+                    .meta-label { font-weight: bold; font-size: 12px; display: inline-block; width: 100px; }
+
+                    /* OSOITE */
+                    .recipient-box { margin-bottom: 30px; border: 1px solid #aaa; padding: 15px; width: 300px; min-height: 80px; }
+
+                    /* YHTEENVETO */
+                    .totals-box { margin-left: auto; width: 250px; text-align: right; page-break-inside: avoid; margin-top: 20px; margin-bottom: 20px; }
+                    .total-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+                    .total-final { font-size: 15px; font-weight: bold; border-top: 2px solid #000; padding-top: 5px; margin-top: 5px; display: flex; justify-content: space-between; }
+
+                    /* FOOTER SISÄLTÖ */
+                    .footer-content { border-top: 2px dashed #000; padding-top: 10px; margin-top: 20px; }
+                    .barcode-container { text-align: center; margin-top: 10px; padding-bottom: 10px; }
+                    svg#barcode { width: 100%; max-width: 450px; height: 50px; }
                 </style>
             </head>
             <body>
-                <div class="header-top">
-                    <div class="company-info">
-                        <div class="company-name">${companyInfo.nimi || ''}</div>
-                        <div>${companyInfo.katu || ''}</div>
-                        <div>${companyInfo.postinro || ''} ${companyInfo.toimipaikka || ''}</div>
-                        <div style="margin-top:5px">Y-tunnus: ${companyInfo.y_tunnus || '-'}</div>
-                        ${companyInfo.puhelin ? `<div>Puh: ${companyInfo.puhelin}</div>` : ''}
-                        ${companyInfo.email ? `<div>Email: ${companyInfo.email}</div>` : ''}
-                    </div>
-                    <div class="meta-box">
-                        <div class="header-title" style="text-align:right; margin-bottom:15px">LASKU</div>
-                        <div class="meta-row"><span class="meta-label">PÄIVÄMÄÄRÄ:</span> <span>${billDate}</span></div>
-                        <div class="meta-row"><span class="meta-label">LASKUN NRO:</span> <span>${invoiceNum}</span></div>
-                        <div class="meta-row"><span class="meta-label">VIITENUMERO:</span> <span>${refNum}</span></div>
-                        <div class="meta-row" style="margin-top:5px"><span class="meta-label">ERÄPÄIVÄ:</span> <span>${dueDate}</span></div>
-                    </div>
-                </div>
-
-                <div class="recipient"><b>${inv.customerName || inv.customer_name}</b><br>${(inv.billingAddress || inv.billing_address || '').replace(',', '<br>')}</div>
+                
                 <table>
-                    <thead><tr><th>KUVAUS</th><th style="text-align:right">SUMMA</th></tr></thead>
-                    <tbody>${rowsHtml}</tbody>
+                    <thead>
+                        <tr>
+                            <td>
+                                <div class="header-content">
+                                    <div style="width: 60%">
+                                        <div class="company-name">${companyInfo.nimi || ''}</div>
+                                        <div>${companyInfo.katu || ''}</div>
+                                        <div>${companyInfo.postinro || ''} ${companyInfo.toimipaikka || ''}</div>
+                                        <div style="margin-top:5px">Y-tunnus: ${companyInfo.y_tunnus || '-'}</div>
+                                        ${companyInfo.puhelin ? `<div>Puh: ${companyInfo.puhelin}</div>` : ''}
+                                        ${companyInfo.email ? `<div>Email: ${companyInfo.email}</div>` : ''}
+                                    </div>
+                                    <div style="width: 40%; text-align: right;">
+                                        <div class="header-title" style="margin-bottom:10px">LASKU</div>
+                                        <div><span class="meta-label">PÄIVÄMÄÄRÄ:</span> <span>${billDate}</span></div>
+                                        <div><span class="meta-label">LASKUN NRO:</span> <span>${invoiceNum}</span></div>
+                                        <div><span class="meta-label">VIITENUMERO:</span> <span>${refNum}</span></div>
+                                        <div style="margin-top:5px"><span class="meta-label">ERÄPÄIVÄ:</span> <span>${dueDate}</span></div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </thead>
+
+                    <tfoot>
+                        <tr>
+                            <td>
+                                <div class="footer-content">
+                                    <div style="display:flex; justify-content:space-between; font-size:12px;">
+                                        <div><b>Saaja:</b> ${companyInfo.nimi || ''}<br><b>IBAN:</b> ${companyInfo.iban || ''}</div>
+                                        <div style="text-align:right"><b>Viite:</b> ${refNum}<br><b>Eräpäivä:</b> ${dueDate}<br><b>Summa:</b> ${totalGross.toFixed(2)} €</div>
+                                    </div>
+                                    ${virtualBarcode ? `<div class="barcode-container"><svg id="barcode"></svg><div style="font-family:monospace;font-size:11px;letter-spacing:2px;">${virtualBarcode}</div></div>` : ''}
+                                </div>
+                            </td>
+                        </tr>
+                    </tfoot>
+
+                    <tbody>
+                        <tr>
+                            <td>
+                                <div class="recipient-box">
+                                    <b>${inv.customerName || inv.customer_name}</b><br>
+                                    ${(inv.billingAddress || inv.billing_address || '').replace(',', '<br>')}
+                                </div>
+
+                                <table class="invoice-data">
+                                    <thead>
+                                        <tr>
+                                            <th>KUVAUS</th>
+                                            <th style="width: 100px; text-align:right;">SUMMA</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${rowsHtml}
+                                    </tbody>
+                                </table>
+
+                                <div class="totals-box">
+                                    <div class="total-row"><span>VEROTON:</span> <span>${(totalGross/alvMultiplier).toFixed(2)} €</span></div>
+                                    <div class="total-row"><span>ALV ${alvRate}%:</span> <span>${(totalGross - (totalGross/alvMultiplier)).toFixed(2)} €</span></div>
+                                    <div class="total-final"><span>YHTEENSÄ:</span> <span>${totalGross.toFixed(2)} €</span></div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
                 </table>
-                <div class="totals-section">
-                    <div style="width:250px">
-                        <div style="display:flex;justify-content:space-between"><span>VEROTON:</span><span>${totalNet.toFixed(2)} €</span></div>
-                        <div style="display:flex;justify-content:space-between"><span>ALV ${alvRate}%:</span><span>${totalVat.toFixed(2)} €</span></div>
-                        <div class="total-final" style="display:flex;justify-content:space-between"><span>YHTEENSÄ:</span><span>${totalGross.toFixed(2)} €</span></div>
-                    </div>
-                </div>
-                <div class="footer-wrapper">
-                    <div class="footer-content">
-                        <div><b>Saaja:</b> ${companyInfo.nimi || ''}<br><b>IBAN:</b> ${companyInfo.iban || ''}</div>
-                        <div style="text-align:right"><b>Viite:</b> ${refNum}<br><b>Eräpäivä:</b> ${dueDate}<br><b>Summa:</b> ${totalGross.toFixed(2)} €</div>
-                    </div>
-                    ${virtualBarcode ? `<div class="barcode-container"><svg id="barcode"></svg><div style="font-family:monospace;margin-top:5px">${virtualBarcode}</div></div>` : ''}
-                </div>
+
                 <script>
                     window.onload = function() {
                         if ("${virtualBarcode}") JsBarcode("#barcode", "${virtualBarcode}", {format: "CODE128", width: 1.5, height: 40, displayValue: false});
@@ -562,7 +611,6 @@ const InvoiceView = ({ onBack, showNotification }) => {
             </html>
         `);
         doc.close();
-        setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 1000);
     };
 
     const totalBilledNet = invoices.reduce((sum, inv) => sum + inv.totalSum, 0);

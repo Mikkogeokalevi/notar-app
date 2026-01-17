@@ -7,6 +7,15 @@ const InstructionsView = ({ onBack }) => {
     // VERSIOHISTORIA - Uusin aina ensin
     const versions = [
         {
+            version: "1.7",
+            date: "17.01.2026",
+            changes: [
+                "Tulostuskorjaus: Laskujen tulostus on rakennettu kokonaan uudelleen. Pitkät laskut jakautuvat nyt siististi usealle sivulle.",
+                "Yhteensopivuus: Tulostusnäkymä toimii nyt luotettavasti eri selaimilla (Chrome, Edge, Firefox).",
+                "Ulkoasu: Otsikot (Kuvaus/Summa) toistuvat automaattisesti uuden sivun alussa helpottamaan lukemista."
+            ]
+        },
+        {
             version: "1.6",
             date: "17.01.2026",
             changes: [
@@ -51,7 +60,7 @@ const InstructionsView = ({ onBack }) => {
         },
         {
             version: "1.0",
-            date: "10.01.2026",
+            date: "01.01.2026",
             changes: [
                 "Julkaisuversio: Työkirjaukset, Asiakasrekisteri, Laskutusautomaatio ja Arkisto."
             ]
