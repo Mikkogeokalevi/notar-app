@@ -74,6 +74,7 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
         const amountPart = euros + cents;
         const refPart = ref.replace(/[^0-9]/g, '').padStart(20, '0');
         const d = new Date(dateStr);
+        d.setDate(d.getDate() + 14); 
         const yy = d.getFullYear().toString().slice(-2);
         const mm = (d.getMonth() + 1).toString().padStart(2, '0');
         const dd = d.getDate().toString().padStart(2, '0');
@@ -115,10 +116,7 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
         const multiplier = 1 + (alvRate / 100);
 
         if (field === 'total') {
-            // Jos muutetaan hintaa
             let numericVal = parseFloat(value) || 0;
-            // Jos B2B, käyttäjä syöttää verottoman -> tallennetaan verollisena
-            // Jos B2C, käyttäjä syöttää verollisen -> tallennetaan verollisena
             if (isB2B) {
                 newRows[index].total = numericVal * multiplier;
             } else {
@@ -249,7 +247,8 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                 <div class="recipient"><b>${inv.customer_name}</b><br>${inv.billing_address ? inv.billing_address.replace(',', '<br>') : ''}</div>
                 <table><thead><tr><th>KUVAUS</th><th style="text-align:right">SUMMA</th></tr></thead><tbody>${rowsHtml}</tbody></table>
                 <div class="totals-section"><div style="width:250px">
-                    ${!isB2C ? `<div style="display:flex;justify-content:space-between"><span>VEROTON:</span><span>${totalNet.toFixed(2)} €</span></div><div style="display:flex;justify-content:space-between"><span>ALV ${alvRate}%:</span><span>${totalVat.toFixed(2)} €</span></div>` : ''}
+                    <div style="display:flex;justify-content:space-between"><span>VEROTON:</span><span>${totalNet.toFixed(2)} €</span></div>
+                    <div style="display:flex;justify-content:space-between"><span>ALV ${alvRate}%:</span><span>${totalVat.toFixed(2)} €</span></div>
                     <div class="total-final" style="display:flex;justify-content:space-between"><span>YHTEENSÄ:</span><span>${inv.total_sum.toFixed(2)} €</span></div>
                 </div></div>
                 <div class="footer-wrapper"><div class="footer-content"><div><b>Saaja:</b> ${companyInfo.nimi || ''}<br><b>IBAN:</b> ${companyInfo.iban || ''}</div><div style="text-align:right"><b>Viite:</b> ${refNum}<br><b>Eräpäivä:</b> ${dueDate}<br><b>Summa:</b> ${inv.total_sum.toFixed(2)} €</div></div>${virtualBarcode ? `<div class="barcode-container"><svg id="barcode"></svg><div style="font-family:monospace;margin-top:5px">${virtualBarcode}</div></div>` : ''}</div>
@@ -284,7 +283,6 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
         const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
         const multiplier = 1 + (alvRate / 100);
         
-        // rows.total on aina BRUTTO (sis. alv) tietokannassa.
         const totalGross = editingInvoice.rows.reduce((sum, r) => sum + (r.type === 'row' ? parseFloat(r.total || 0) : 0), 0);
         const totalNet = totalGross / multiplier;
         const totalVat = totalGross - totalNet;
@@ -408,13 +406,9 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                         {/* FOOTER (KIINTEÄ) - YHTEENVETO & NAPIT */}
                         <div style={{paddingTop:'15px', borderTop:'1px solid #444', marginTop: '10px', background:'#1e1e1e'}}>
                             <div style={{textAlign:'right', fontWeight:'bold', fontSize:'0.9rem', marginBottom:'15px', lineHeight:'1.4', color:'#ccc'}}>
-                                {isEditingB2B && (
-                                    <>
-                                        <div>Veroton: {totals.net.toFixed(2)} €</div>
-                                        <div>ALV {alvRate}%: {totals.vat.toFixed(2)} €</div>
-                                        <hr style={{borderColor:'#444', margin:'5px 0 5px auto', width:'150px'}}/>
-                                    </>
-                                )}
+                                <div>Veroton: {totals.net.toFixed(2)} €</div>
+                                <div>ALV {alvRate}%: {totals.vat.toFixed(2)} €</div>
+                                <hr style={{borderColor:'#444', margin:'5px 0 5px auto', width:'150px'}}/>
                                 <div style={{fontSize:'1.2rem', color:'#fff'}}>Yhteensä: {totals.gross.toFixed(2)} €</div>
                             </div>
 

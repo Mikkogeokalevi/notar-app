@@ -7,10 +7,18 @@ const InstructionsView = ({ onBack }) => {
     // VERSIOHISTORIA - Uusin aina ensin
     const versions = [
         {
+            version: "1.6",
+            date: "17.01.2026",
+            changes: [
+                "Laskun ulkoasu: ALV-erittely (Veroton, ALV, Yhteensä) tulostuu nyt laskun loppuun aina, myös yksityisasiakkaille (B2C).",
+                "Selkeys: Tämä täyttää viralliset laskutusvaatimukset paremmin ja selkeyttää hinnan muodostumista."
+            ]
+        },
+        {
             version: "1.5",
             date: "17.01.2026",
             changes: [
-                "Laskuarkiston laajennettu muokkaus: Voit nyt lisätä, poistaa ja muokata rivejä myös jo luoduissa (avoimissa) laskuissa. Tämä onnistuu 'Muokkaa' (✏️) -toiminnolla.",
+                "Laskuarkiston laajennettu muokkaus: Voit nyt lisätä, poistaa ja muokata rivejä myös jo luoduissa (avoimissa) laskuissa.",
                 "Älykäs hinnanmuokkaus: Yritysasiakkaille (B2B) hinnat syötetään nyt muokkauksessa verottomana (ALV 0%), ja sovellus laskee verollisen hinnan. Yksityisille (B2C) hinnat syötetään verollisena.",
                 "Käyttöliittymä: Muokkausikkunat skaalautuvat paremmin pienille näytöille ja sisältöä voi rullata."
             ]
@@ -20,8 +28,7 @@ const InstructionsView = ({ onBack }) => {
             date: "17.01.2026",
             changes: [
                 "Laskuluonnosten hallinta: Laskutusnäkymässä on nyt valintaruudut. Voit valita listalta mitkä laskut luodaan, ja jättää loput odottamaan.",
-                "Luonnosten muokkaus: Voit muokata ja poistaa laskuluonnoksia 'kynä' ja 'roskakori' -painikkeilla ennen laskun virallista luontia.",
-                "ALV-erittely: Laskuilla ja esikatselussa näkyy nyt selkeästi Veroton summa, ALV:n osuus ja Yhteissumma eriteltynä."
+                "Luonnosten muokkaus: Voit muokata ja poistaa laskuluonnoksia 'kynä' ja 'roskakori' -painikkeilla ennen laskun virallista luontia."
             ]
         },
         {
@@ -44,7 +51,7 @@ const InstructionsView = ({ onBack }) => {
         },
         {
             version: "1.0",
-            date: "01.01.2026",
+            date: "10.01.2026",
             changes: [
                 "Julkaisuversio: Työkirjaukset, Asiakasrekisteri, Laskutusautomaatio ja Arkisto."
             ]
