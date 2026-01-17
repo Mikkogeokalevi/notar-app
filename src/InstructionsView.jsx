@@ -42,7 +42,7 @@ const InstructionsView = ({ onBack }) => {
         },
         {
             version: "1.3",
-            date: "15.01.2026",
+            date: "11.01.2026",
             changes: [
                 "Hyvityslaskut: Mahdollisuus luoda hyvityslasku suoraan vanhasta laskusta ja kirjata sille syy.",
                 "Mitätöinti: Virheellisen laskun mitätöinti arkistossa ilman hyvityslaskun luontia (jos laskua ei ole lähetetty).",
@@ -51,7 +51,7 @@ const InstructionsView = ({ onBack }) => {
         },
         {
             version: "1.2",
-            date: "12.01.2026",
+            date: "11.01.2026",
             changes: [
                 "PWA-tuki: Ohjeet sovelluksen asentamiseksi puhelimen kotinäytölle.",
                 "Ulkoasu: Tumma teema ja parannettu luettavuus.",
@@ -60,7 +60,7 @@ const InstructionsView = ({ onBack }) => {
         },
         {
             version: "1.0",
-            date: "01.01.2026",
+            date: "10.01.2026",
             changes: [
                 "Julkaisuversio: Työkirjaukset, Asiakasrekisteri, Laskutusautomaatio ja Arkisto."
             ]
@@ -227,7 +227,6 @@ const InstructionsView = ({ onBack }) => {
 
                 <h2 style={{color:'#4caf50'}}>5. TIETOTURVA</h2>
                 <p>Sovellus vaatii kirjautumisen sähköpostilla ja salasanalla. Istunto säilyy laitteella, joten sisäänkirjautumista ei tarvitse tehdä jatkuvasti uudelleen, ellei käyttäjä kirjaudu ulos ohjauspaneelista.</p>
-                <p>Datan varmuuskopiointi onnistuu "Yrityksen Asetukset" -sivulta (Admin-toiminto), josta koko tietokannan voi ladata JSON-tiedostona omalle koneelle turvaan.</p>
             </div>
         </div>
     );
