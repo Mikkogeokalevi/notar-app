@@ -4,6 +4,7 @@ import InvoiceView from './InvoiceView';
 import InvoiceArchive from './InvoiceArchive';
 import InstructionsView from './InstructionsView';
 import ReportsView from './ReportsView';
+import WorkView from './WorkView'; // <--- TÄMÄ ON SE RATKAISEVA LISÄYS!
 import Login from './Login'; 
 import logo from './logo.jpeg'; 
 import { db, auth } from './firebase'; 
@@ -13,11 +14,9 @@ import {
 import { onAuthStateChanged, signOut } from 'firebase/auth'; 
 
 // --- TURVALLISUUS: SALLITUT KÄYTTÄJÄT ---
-// Lisää tähän listaan oma sähköpostisi ja asiakkaan sähköposti.
-// Jos joku muu yrittää kirjautua, hänet kirjataan heti ulos.
 const ALLOWED_EMAILS = [
     'toni@kauppinen.info',
-    'tapio.sarajarvi@phnet.fi' // <--- VAIHDA TÄHÄN ASIAKKAAN OIKEA SÄHKÖPOSTI KUN TIEDÄT SEN
+    'tapio.sarajarvi@phnet.fi' 
 ];
 
 // --- APUKOMPONENTIT ---
@@ -256,163 +255,6 @@ const WorkLog = ({ onBack, showNotification, requestConfirm }) => {
             )}
         </div>
     )
-};
-
-const WorkView = ({ availableTasks, onOpenLog, showNotification }) => {
-    const [valittuTehtava, setValittuTehtava] = useState(null);
-    const visibleTasks = availableTasks.filter(t => t.showInWorkView !== false);
-    const [pvm, setPvm] = useState(new Date().toISOString().slice(0, 10)); 
-    const [kaikkiKohteet, setKaikkiKohteet] = useState([]); 
-    const [valitutKohteet, setValitutKohteet] = useState({});
-    const [filterType, setFilterType] = useState('all'); 
-    const [asiakkaat, setAsiakkaat] = useState([]);
-    const [valittuAsiakasId, setValittuAsiakasId] = useState('');
-    const [valittuKohdeId, setValittuKohdeId] = useState('');
-    const [asiakkaanKohteet, setAsiakkaanKohteet] = useState([]);
-    const [selite, setSelite] = useState('');
-    const [hinta1, setHinta1] = useState('');
-    const [hinta2, setHinta2] = useState('');
-
-    useEffect(() => {
-        if (!valittuTehtava) return;
-        const isMass = ['checkbox', 'fixed', 'kg', 'hourly'].includes(valittuTehtava.type);
-        if (isMass) {
-            const unsubscribe1 = onSnapshot(collection(db, "customers"), (custSnap) => {
-                const customers = custSnap.docs.map(d => ({id: d.id, ...d.data()}));
-                onSnapshot(collection(db, "properties"), (propSnap) => {
-                    const properties = propSnap.docs.map(d => ({id: d.id, ...d.data()}));
-                    let yhdistettyLista = [];
-                    properties.forEach(prop => {
-                        const parent = customers.find(c => c.id === prop.customer_id);
-                        if (!parent) return;
-                        const propContract = prop.contracts?.[valittuTehtava.id];
-                        const custContract = parent.contracts?.[valittuTehtava.id];
-                        const isActive = propContract?.active || custContract?.active;
-                        if (isActive) {
-                            const price = propContract?.active ? propContract.price : (custContract?.price || '0');
-                            yhdistettyLista.push({id: prop.id, type: 'property', name: prop.address, group: prop.group || 'Ei ryhmää', customerName: parent.name, customerType: parent.type, parentId: parent.id, contractPrice: price});
-                        }
-                    });
-                    customers.forEach(cust => {
-                        const custContract = cust.contracts?.[valittuTehtava.id];
-                        if (cust.type === 'b2c' && custContract?.active) {
-                            yhdistettyLista.push({id: cust.id, type: 'customer', name: cust.street ? `${cust.name} (${cust.street})` : cust.name, group: 'Yksityiset', customerName: cust.name, customerType: 'b2c', parentId: cust.id, contractPrice: custContract.price || '0'});
-                        }
-                    });
-                    setKaikkiKohteet(yhdistettyLista);
-                    const alustus = {};
-                    yhdistettyLista.forEach(k => alustus[k.id] = valittuTehtava.type === 'kg' ? '' : true);
-                    setValitutKohteet(alustus);
-                });
-            });
-        } else {
-            const q = query(collection(db, "customers"), orderBy("name"));
-            onSnapshot(q, (snap) => setAsiakkaat(snap.docs.map(d => ({id: d.id, ...d.data()}))));
-        }
-    }, [valittuTehtava]);
-
-    useEffect(() => {
-        if (valittuAsiakasId) {
-            const q = query(collection(db, "properties"), where("customer_id", "==", valittuAsiakasId));
-            onSnapshot(q, (snap) => setAsiakkaanKohteet(snap.docs.map(d => ({id: d.id, ...d.data()}))));
-        }
-    }, [valittuAsiakasId]);
-
-    const tallennaMassa = async () => {
-        const batch = [];
-        for (const [kohdeId, arvo] of Object.entries(valitutKohteet)) {
-            if (!arvo) continue; 
-            const target = kaikkiKohteet.find(k => k.id === kohdeId);
-            if (!target) continue;
-            batch.push(addDoc(collection(db, "work_entries"), {
-                date: pvm, task_id: valittuTehtava.id, task_name: valittuTehtava.label, task_type: valittuTehtava.type, property_id: kohdeId, property_address: target.name, customer_name: target.customerName, group: target.group, customer_id: target.parentId, value: arvo, price_work: target.contractPrice, invoiced: false, created_at: new Date()
-            }));
-        }
-        await Promise.all(batch);
-        showNotification(`Tallennettu ${batch.length} kirjausta!`, "success");
-        setValittuTehtava(null);
-    };
-
-    const tallennaTasma = async () => {
-        if (!valittuAsiakasId || !hinta1) return showNotification("Täytä pakolliset kentät!", "error");
-        const asiakas = asiakkaat.find(a => a.id === valittuAsiakasId);
-        let propertyInfo = { id: valittuAsiakasId, address: asiakas.street || asiakas.name, group: 'Yksityinen' };
-        if (valittuKohdeId) {
-            const k = asiakkaanKohteet.find(x => x.id === valittuKohdeId);
-            if (k) propertyInfo = { id: k.id, address: k.address, group: k.group };
-        } else {
-            if (asiakas.type !== 'b2c') return showNotification("Valitse kohde listasta!", "error");
-        }
-        await addDoc(collection(db, "work_entries"), {
-            date: pvm, task_id: valittuTehtava.id, task_name: valittuTehtava.label, task_type: valittuTehtava.type, property_id: propertyInfo.id, property_address: propertyInfo.address, group: propertyInfo.group, customer_id: valittuAsiakasId, customer_name: asiakas.name, description: selite, price_work: hinta1, price_material: hinta2, invoiced: false, created_at: new Date()
-        });
-        showNotification("Kirjaus tallennettu!", "success");
-        setValittuTehtava(null);
-        setSelite(''); setHinta1(''); setHinta2('');
-    };
-
-    if (!valittuTehtava) {
-        return (
-            <div>
-                <h2 style={{textAlign:'center', marginBottom:'20px'}}>Valitse työtehtävä:</h2>
-                <div className="button-grid">
-                    {visibleTasks.map(task => (
-                        <button key={task.id} className="work-button" style={{backgroundColor: task.color || '#2196f3'}} onClick={() => setValittuTehtava(task)}>{task.label}</button>
-                    ))}
-                </div>
-                <div style={{textAlign:'center', marginTop:'30px'}}>
-                    <button onClick={onOpenLog} className="back-btn" style={{padding:'15px', width:'100%', fontSize:'1rem'}}>📋 Selaa & Muokkaa kirjauksia &rarr;</button>
-                </div>
-            </div>
-        );
-    }
-    const isMassWork = ['checkbox', 'fixed', 'kg', 'hourly'].includes(valittuTehtava.type);
-    return (
-        <div className="admin-section">
-            <button onClick={() => setValittuTehtava(null)} className="back-btn" style={{marginBottom:'20px'}}>&larr; Takaisin</button>
-            <h2 style={{borderBottom: `4px solid ${valittuTehtava.color}`, display:'inline-block', paddingBottom:'5px'}}>{valittuTehtava.label}</h2>
-            <div className="form-group"><label>Päivämäärä:</label><input type="date" value={pvm} onChange={e => setPvm(e.target.value)} style={{maxWidth:'200px'}} /></div>
-            {isMassWork && (
-                <div>
-                    <div style={{display:'flex', gap:'10px', marginBottom:'15px', flexWrap:'wrap'}}>
-                        <button className={`nav-btn ${filterType==='isannointi'?'active':''}`} onClick={() => setFilterType('isannointi')} style={{flex:1, fontSize:'0.8rem'}}>🏢 Isänn.</button>
-                        <button className={`nav-btn ${filterType==='b2b'?'active':''}`} onClick={() => setFilterType('b2b')} style={{flex:1, fontSize:'0.8rem'}}>🏭 Yritys</button>
-                        <button className={`nav-btn ${filterType==='b2c'?'active':''}`} onClick={() => setFilterType('b2c')} style={{flex:1, fontSize:'0.8rem'}}>🏠 Yksity.</button>
-                        <button className={`nav-btn ${filterType==='all'?'active':''}`} onClick={() => setFilterType('all')} style={{flex:1, fontSize:'0.8rem'}}>Kaikki</button>
-                    </div>
-                    <div style={{display:'flex', flexDirection:'column', gap:'15px'}}>
-                        {Array.from(new Set(kaikkiKohteet.filter(k => filterType === 'all' || k.customerType === filterType).map(k => `${k.customerName}::${k.group}`))).map(groupKey => {
-                            const [custName, groupName] = groupKey.split('::');
-                            const groupItems = kaikkiKohteet.filter(k => k.customerName === custName && k.group === groupName);
-                            return (
-                                <div key={groupKey} className="card-box" style={{padding:'10px'}}>
-                                    <h4 style={{margin:'0 0 5px 0', color: '#fff'}}>{custName}</h4>
-                                    <div style={{fontSize:'0.9em', color:'#2196f3', marginBottom:'10px', fontWeight:'bold'}}>{groupName}</div>
-                                    {groupItems.map(kohde => (
-                                        <div key={kohde.id} style={{display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #333', alignItems:'center'}}>
-                                            <span>{kohde.name}</span>
-                                            {valittuTehtava.type === 'kg' ? (<input type="number" placeholder="kg" value={valitutKohteet[kohde.id] || ''} onChange={e => setValitutKohteet({...valitutKohteet, [kohde.id]: e.target.value})} style={{width:'80px', padding:'5px'}} />) : (<input type="checkbox" className="big-checkbox" checked={!!valitutKohteet[kohde.id]} onChange={e => setValitutKohteet({...valitutKohteet, [kohde.id]: e.target.checked})} />)}
-                                        </div>
-                                    ))}
-                                </div>
-                            )
-                        })}
-                        {kaikkiKohteet.length === 0 && <p>Ei kohteita.</p>}
-                    </div>
-                    <button onClick={tallennaMassa} className="save-btn" style={{width:'100%', marginTop:'20px', padding:'15px'}}>Tallenna Valinnat ✅</button>
-                </div>
-            )}
-            {!isMassWork && (
-                <div className="card-box">
-                    <div className="form-group"><label>Asiakas:</label><select value={valittuAsiakasId} onChange={e => {setValittuAsiakasId(e.target.value); setValittuKohdeId('');}}><option value="">-- Valitse --</option>{asiakkaat.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
-                    {(asiakkaanKohteet.length > 0 || (valittuAsiakasId && asiakkaat.find(a=>a.id===valittuAsiakasId)?.type !== 'b2c')) && (<div className="form-group"><label>Kohde:</label><select value={valittuKohdeId} onChange={e => setValittuKohdeId(e.target.value)}><option value="">-- Valitse --</option>{asiakkaanKohteet.map(k => <option key={k.id} value={k.id}>{k.address}</option>)}</select></div>)}
-                    <div className="form-group"><label>Selite:</label><input value={selite} onChange={e => setSelite(e.target.value)} placeholder="Mitä tehtiin..." /></div>
-                    <div className="form-row"><div><label>Työ (€)</label><input type="number" value={hinta1} onChange={e => setHinta1(e.target.value)} /></div>{valittuTehtava.type === 'material' && <div><label>Tarvike (€)</label><input type="number" value={hinta2} onChange={e => setHinta2(e.target.value)} /></div>}</div>
-                    <button onClick={tallennaTasma} className="save-btn" style={{width:'100%', marginTop:'20px'}}>Tallenna Kirjaus ✅</button>
-                </div>
-            )}
-        </div>
-    );
 };
 
 // --- KOMPONENTTI: COMPANY SETTINGS ---

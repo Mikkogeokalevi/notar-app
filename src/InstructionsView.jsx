@@ -8,10 +8,10 @@ const InstructionsView = ({ onBack }) => {
     const versions = [
         {
             version: "1.7",
-            date: "17.01.2026",
+            date: "18.01.2026",
             changes: [
-                "Tulostuskorjaus: Laskujen tulostus on rakennettu kokonaan uudelleen. Pitkät laskut jakautuvat nyt siististi usealle sivulle.",
-                "Yhteensopivuus: Tulostusnäkymä toimii nyt luotettavasti eri selaimilla (Chrome, Edge, Firefox).",
+                "Työkirjaukset: Korjattu massakirjausten (Auraus/Hiekoitus) ja täsmäkirjausten (Lisätyöt) erottelu. Massalistassa näkyy nyt selkeästi asiakas ja osoite.",
+                "Tulostus: Laskujen tulostus on rakennettu kokonaan uudelleen. Pitkät laskut jakautuvat nyt siististi usealle sivulle.",
                 "Ulkoasu: Otsikot (Kuvaus/Summa) toistuvat automaattisesti uuden sivun alussa helpottamaan lukemista."
             ]
         },
@@ -28,8 +28,7 @@ const InstructionsView = ({ onBack }) => {
             date: "17.01.2026",
             changes: [
                 "Laskuarkiston laajennettu muokkaus: Voit nyt lisätä, poistaa ja muokata rivejä myös jo luoduissa (avoimissa) laskuissa.",
-                "Älykäs hinnanmuokkaus: Yritysasiakkaille (B2B) hinnat syötetään nyt muokkauksessa verottomana (ALV 0%), ja sovellus laskee verollisen hinnan. Yksityisille (B2C) hinnat syötetään verollisena.",
-                "Käyttöliittymä: Muokkausikkunat skaalautuvat paremmin pienille näytöille ja sisältöä voi rullata."
+                "Älykäs hinnanmuokkaus: Yritysasiakkaille (B2B) hinnat syötetään nyt muokkauksessa verottomana (ALV 0%), ja sovellus laskee verollisen hinnan. Yksityisille (B2C) hinnat syötetään verollisena."
             ]
         },
         {
