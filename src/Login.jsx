@@ -66,7 +66,7 @@ const Login = () => {
                 padding: '10px',
                 borderRadius: '6px',
                 marginBottom: '15px',
-                border: '1px solid '#d32f2f',
+                border: '1px solid #d32f2f',
               }}
             >
               {error}
