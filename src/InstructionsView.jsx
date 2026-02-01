@@ -7,6 +7,13 @@ const InstructionsView = ({ onBack }) => {
     // VERSIOHISTORIA - Uusin aina ensin
     const versions = [
         {
+            version: "1.9",
+            date: "01.02.2026",
+            changes: [
+                "Viitenumero: Viitenumero ei enää ala nollalla (pohja 1000 + laskunumero). Pankkiohjelmat eivät typistä viitettä, joten virtuaaliviivakoodilla maksettava lasku toimii suoraan ilman manuaalista nollan lisäystä."
+            ]
+        },
+        {
             version: "1.7",
             date: "18.01.2026",
             changes: [

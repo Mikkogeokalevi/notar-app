@@ -1,6 +1,6 @@
 # Kärkölän Notar Oy - AI-kehitysohjeet
 
-**Projektin versio:** 1.8 (tila tammikuu 2026)  
+**Projektin versio:** 1.9 (tila helmikuu 2026)  
 **Teknologia:** React 19.2.0 + Vite 7.2.4 + Firebase Firestore + Firebase Auth  
 **Deploy:** GitHub Pages (`mikkogeokalevi.github.io/notar-app`), paivitys.bat (git push + npm run deploy)
 
@@ -166,6 +166,7 @@ Säännöt on määritelty Firebase-konsolissa ja ne:
 
 ## 📝 VERSIOHISTORIA
 
+- **1.9** (01.02.2026) - Viitenumero ei ala nollalla (pohja 1000 + laskunumero), pankkiohjelmat eivät typistä viitettä
 - **1.8** (22.01.2026) - Rekisteröinti poistettu, Firebase-säännöt ALLOWED_EMAILS; PWA (manifest, sw.js, favicon); Haamujen siivous; laskujen hyväksyntä valintaruuduilla; hyvitys/mitätöintisyyt tulosteessa; viitenumero min 4 numeroa; KK-laskutustiedon nollaus selvennetty
 - **1.7** (18.01.2026) - Työkirjaukset eroteltu massaksi/täsmäksi, tulostus uudelleenrakennettu
 - **1.6** (17.01.2026) - ALV-erittely laskuille
@@ -198,4 +199,4 @@ npm run deploy       # Deployaa gh-pages -haaraan (GitHub Pages)
 
 ---
 
-**Viimeisin päivitys:** 22.01.2026 (ai_rules.md päivitetty istunnon yhteenvedolla: kirjautuminen, PWA, laskutus, Haamujen siivous, versio 1.8)
+**Viimeisin päivitys:** 01.02.2026 (versio 1.9, ohjekirjan versiohistoria + ai_rules)
