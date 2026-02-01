@@ -227,7 +227,8 @@ const InvoiceView = ({ onBack, showNotification }) => {
     // --- APUFUNKTIOT ---
     const getInvoiceCategory = (entry) => {
         if (entry.task_type === 'fixed_monthly' || entry.origin === 'contract_generated') return 'Sopimukset';
-        if (['extra', 'material'].includes(entry.task_type)) return 'Erillistyöt';
+        if (entry.task_type === 'material') return 'Liitetyöt';
+        if (entry.task_type === 'extra') return 'Erillistyöt';
         return 'Kiinteistöhuolto'; 
     };
 
@@ -387,12 +388,25 @@ const InvoiceView = ({ onBack, showNotification }) => {
                     });
 
                     singles.forEach(e => {
-                        const rowNet = parseFloat(e.price_work || 0) + parseFloat(e.price_material || 0);
-                        const rowGross = rowNet * alvMultiplier;
-                        totalSumGross += rowGross;
+                        const workNet = parseFloat(e.price_work || 0);
+                        const matNet = parseFloat(e.price_material || 0);
                         let text = e.description || e.task_name;
                         if (e.task_type !== 'fixed_monthly') text = `${new Date(e.date).getDate()}.${new Date(e.date).getMonth()+1}. ${text}`;
-                        rows.push({ type: 'row', text: text, details: `Netto: ${rowNet.toFixed(2)}€ (alv0)`, total: rowGross });
+                        if (workNet > 0 && matNet > 0) {
+                            const workGross = workNet * alvMultiplier;
+                            const matGross = matNet * alvMultiplier;
+                            totalSumGross += workGross + matGross;
+                            rows.push({ type: 'row', text: text, details: `Työ: ${workNet.toFixed(2)} € (alv0)`, total: workGross });
+                            rows.push({ type: 'row', text: text + ' – Tarvike', details: `Tarvike: ${matNet.toFixed(2)} € (alv0)`, total: matGross });
+                        } else if (workNet > 0) {
+                            const rowGross = workNet * alvMultiplier;
+                            totalSumGross += rowGross;
+                            rows.push({ type: 'row', text: text, details: `Työ: ${workNet.toFixed(2)} € (alv0)`, total: rowGross });
+                        } else if (matNet > 0) {
+                            const rowGross = matNet * alvMultiplier;
+                            totalSumGross += rowGross;
+                            rows.push({ type: 'row', text: text, details: `Tarvike: ${matNet.toFixed(2)} € (alv0)`, total: rowGross });
+                        }
                     });
                 });
                 return { id: bucket.key, customerId: customer.id, customerName: customer.name, invoiceTitle: bucket.title, customerType: customer.type, billingAddress: `${customer.street || ''}, ${customer.zip || ''} ${customer.city || ''}`, rows: rows, totalSum: totalSumGross / alvMultiplier, rawEntries: entries };
