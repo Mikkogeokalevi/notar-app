@@ -233,14 +233,16 @@ const InvoiceView = ({ onBack, showNotification }) => {
         return 'Kiinteistöhuolto'; 
     };
 
+    // Suomalainen viitenumero: väh. 4 numeroa (pankit hylkäävät lyhyemmän)
     const generateReferenceNumber = (invoiceNum) => {
         if (!invoiceNum) return "";
-        const base = String(invoiceNum).replace(/\D/g, ''); 
+        let base = String(invoiceNum).replace(/\D/g, '');
+        if (base.length < 3) base = base.padStart(3, '0');
         const weights = [7, 3, 1];
         let sum = 0;
-        for (let i = 0; i < base.length; i++) sum += parseInt(base.charAt(base.length - 1 - i)) * weights[i % 3];
+        for (let i = 0; i < base.length; i++) sum += parseInt(base.charAt(base.length - 1 - i), 10) * weights[i % 3];
         const checkDigit = (10 - (sum % 10)) % 10;
-        return base + checkDigit; 
+        return base + checkDigit;
     };
 
     const generateVirtualBarcode = (iban, total, ref, dueDateStr) => {
