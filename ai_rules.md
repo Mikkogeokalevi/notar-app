@@ -105,6 +105,8 @@ Säännöt on määritelty Firebase-konsolissa ja ne:
 - Ryhmittelee laskut asiakaskohtaisesti (isännöinnissä myös ryhmittäin)
 - Yhdistää saman työn massakirjaukset yhteen riviksi
 - Laskunumero kasvaa automaattisesti (`invoice_start_number`)
+- **Hyväksyntä:** Voit valita laskut ruuduilla ja hyväksyä vain valitut ("Hyväksy valitut (N)") tai yhden kerrallaan ("Hyväksy"-nappi per lasku). Oletuksena kaikki valittuna.
+- **Nollaa KK-laskutustieto:** Poistaa valitun kuukauden KK-maksujen (Sopimukset) "laskutettu"-merkinnät (`work_entries` joissa `origin === 'fixed_fee'`). KK-maksut ilmestyvät uudelleen "Hae laskutettavat"-listalle. Käytä jos haluat perua KK-laskutuksen tai generoida listan uudestaan.
 
 ### 3. Tulostus (InvoiceArchive.jsx)
 

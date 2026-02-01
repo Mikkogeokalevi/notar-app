@@ -6,6 +6,7 @@ import './App.css';
 const InvoiceView = ({ onBack, showNotification }) => {
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); 
     const [invoices, setInvoices] = useState([]);
+    const [selectedForApproval, setSelectedForApproval] = useState(new Set());
     const [loading, setLoading] = useState(false);
     const [tasksDef, setTasksDef] = useState([]); 
     const [companyInfo, setCompanyInfo] = useState({});
@@ -411,13 +412,18 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 return { id: bucket.key, customerId: customer.id, customerName: customer.name, invoiceTitle: bucket.title, customerType: customer.type, billingAddress: `${customer.street || ''}, ${customer.zip || ''} ${customer.city || ''}`, rows: rows, totalSum: totalSumGross / alvMultiplier, rawEntries: entries };
             });
 
-            setInvoices(finalInvoices.sort((a,b) => a.invoiceTitle.localeCompare(b.invoiceTitle)));
+            const sorted = finalInvoices.sort((a,b) => a.invoiceTitle.localeCompare(b.invoiceTitle));
+            setInvoices(sorted);
+            setSelectedForApproval(new Set(sorted.map(inv => inv.id)));
             showNotification(`Luotu ${finalInvoices.length} laskuluonnosta.`, "success");
         } catch (error) { console.error(error); showNotification("Virhe: " + error.message, "error"); } finally { setLoading(false); }
     };
 
-    const handleApproveInvoices = async () => {
-        if (!window.confirm("Hyväksytäänkö laskut?")) return;
+    const toApproveList = invoices.filter(inv => selectedForApproval.has(inv.id));
+
+    const handleApproveSelected = async () => {
+        if (toApproveList.length === 0) return showNotification("Valitse vähintään yksi lasku.", "error");
+        if (!window.confirm(`Hyväksytäänkö ${toApproveList.length} laskua?`)) return;
         setLoading(true);
         try {
             const settingsRef = doc(db, "settings", "company_profile");
@@ -427,14 +433,13 @@ const InvoiceView = ({ onBack, showNotification }) => {
             const timestamp = serverTimestamp();
             const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
             const alvMultiplier = 1 + (alvRate / 100);
+            const approvedIds = new Set(toApproveList.map(inv => inv.id));
 
-            for (const invoice of invoices) {
+            for (const invoice of toApproveList) {
                 const invoiceNumberStr = currentInvoiceNum.toString();
                 currentInvoiceNum++;
                 const invoiceRef = doc(collection(db, "invoices")); 
                 const d = new Date(); d.setDate(d.getDate() + 14);
-                
-                // Tallennettaessa palautetaan verollinen kokonaissumma kantaan
                 batch.set(invoiceRef, {
                     invoice_number: invoiceNumberStr, title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, billing_address: invoice.billingAddress, month: selectedMonth, date: new Date().toISOString().slice(0, 10), due_date: d.toISOString().slice(0, 10), rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
                 });
@@ -445,8 +450,37 @@ const InvoiceView = ({ onBack, showNotification }) => {
             }
             batch.update(settingsRef, { invoice_start_number: currentInvoiceNum.toString() });
             await batch.commit();
-            showNotification("Laskut luotu! ✅", "success");
-            setInvoices([]);
+            showNotification(`${toApproveList.length} laskua luotu! ✅`, "success");
+            setInvoices(prev => prev.filter(inv => !approvedIds.has(inv.id)));
+            setSelectedForApproval(prev => { const next = new Set(prev); approvedIds.forEach(id => next.delete(id)); return next; });
+        } catch (error) { console.error(error); showNotification("Virhe: " + error.message, "error"); } finally { setLoading(false); }
+    };
+
+    const handleApproveOne = async (invoice) => {
+        if (!window.confirm(`Hyväksytäänkö lasku "${invoice.invoiceTitle}"?`)) return;
+        setLoading(true);
+        try {
+            const settingsRef = doc(db, "settings", "company_profile");
+            const settingsSnap = await getDoc(settingsRef);
+            let currentInvoiceNum = settingsSnap.exists() ? parseInt(settingsSnap.data().invoice_start_number || 1000) : 1000;
+            const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
+            const alvMultiplier = 1 + (alvRate / 100);
+            const invoiceRef = doc(collection(db, "invoices"));
+            const d = new Date(); d.setDate(d.getDate() + 14);
+            const batch = writeBatch(db);
+            const timestamp = serverTimestamp();
+            batch.set(invoiceRef, {
+                invoice_number: currentInvoiceNum.toString(), title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, billing_address: invoice.billingAddress, month: selectedMonth, date: new Date().toISOString().slice(0, 10), due_date: d.toISOString().slice(0, 10), rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
+            });
+            for (const entry of invoice.rawEntries) {
+                if (entry.origin === 'work_entry') batch.update(doc(db, "work_entries", entry.id), { invoiced: true, invoice_id: invoiceRef.id });
+                else if (entry.origin === 'contract_generated') batch.set(doc(collection(db, "work_entries")), { ...entry, origin: 'fixed_fee', invoiced: true, invoice_id: invoiceRef.id, created_at: timestamp });
+            }
+            batch.update(settingsRef, { invoice_start_number: (currentInvoiceNum + 1).toString() });
+            await batch.commit();
+            showNotification("Lasku luotu! ✅", "success");
+            setInvoices(prev => prev.filter(inv => inv.id !== invoice.id));
+            setSelectedForApproval(prev => { const next = new Set(prev); next.delete(invoice.id); return next; });
         } catch (error) { console.error(error); showNotification("Virhe: " + error.message, "error"); } finally { setLoading(false); }
     };
 
@@ -663,23 +697,38 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 </button>
 
                 <div style={{width:'100%', textAlign:'right'}}>
-                   <button onClick={resetMonthlyFees} className="back-btn" style={{borderColor: '#d32f2f', color: '#d32f2f', fontSize:'0.8rem'}}>🔄 Nollaa KK-laskutustieto</button>
+                   <button onClick={resetMonthlyFees} className="back-btn" style={{borderColor: '#d32f2f', color: '#d32f2f', fontSize:'0.8rem'}} title="Poistaa valitun kuukauden KK-maksujen (Sopimukset) 'laskutettu'-merkinnät. KK-maksut ilmestyvät uudelleen 'Hae laskutettavat'-listalle.">🔄 Nollaa KK-laskutustieto</button>
+                   <p style={{fontSize:'0.75rem', color:'#888', marginTop:'4px', marginBottom:0}}>Poistaa valitun kuukauden KK-maksujen (Sopimukset) laskutettu-merkinnät → ne tulevat uudelleen listalle.</p>
                 </div>
 
-                {invoices.length > 0 && <button onClick={handleApproveInvoices} className="save-btn" style={{background: '#e65100', width:'100%'}}>✅ Hyväksy & Merkitse laskutetuksi</button>}
+                {invoices.length > 0 && (
+                    <div style={{width:'100%', display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap'}}>
+                        <label style={{display:'flex', alignItems:'center', gap:'8px', cursor:'pointer'}}>
+                            <input type="checkbox" className="big-checkbox" checked={selectedForApproval.size === invoices.length} onChange={e => setSelectedForApproval(e.target.checked ? new Set(invoices.map(i => i.id)) : new Set())} />
+                            <span style={{fontSize:'0.9rem'}}>Valitse kaikki</span>
+                        </label>
+                        <button onClick={handleApproveSelected} className="save-btn" style={{background: '#e65100'}} disabled={toApproveList.length === 0}>✅ Hyväksy valitut ({toApproveList.length})</button>
+                    </div>
+                )}
             </div>
 
             <div style={{display:'flex', flexDirection:'column', gap:'20px'}}>
                 {invoices.map((inv, index) => (
-                    <div key={index} style={{background:'#1e1e1e', border:'1px solid #444', borderRadius:'8px', overflow:'hidden'}}>
-                        <div style={{background:'#333', padding:'15px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                            <div><h3 style={{margin:0}}>{inv.invoiceTitle}</h3><span style={{fontSize:'0.8em', color:'#aaa'}}>{inv.customerType === 'b2c' ? 'Yksityinen (Sis. ALV)' : 'Yritys/Isännöinti (+ ALV)'}</span></div>
-                            <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
+                    <div key={inv.id} style={{background:'#1e1e1e', border:'1px solid #444', borderRadius:'8px', overflow:'hidden'}}>
+                        <div style={{background:'#333', padding:'15px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'10px'}}>
+                            <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
+                                <label style={{cursor:'pointer', display:'flex', alignItems:'center'}} title="Valitse hyväksyttäväksi">
+                                    <input type="checkbox" className="big-checkbox" checked={selectedForApproval.has(inv.id)} onChange={() => setSelectedForApproval(prev => { const s = new Set(prev); if (s.has(inv.id)) s.delete(inv.id); else s.add(inv.id); return s; })} />
+                                </label>
+                                <div><h3 style={{margin:0}}>{inv.invoiceTitle}</h3><span style={{fontSize:'0.8em', color:'#aaa'}}>{inv.customerType === 'b2c' ? 'Yksityinen (Sis. ALV)' : 'Yritys/Isännöinti (+ ALV)'}</span></div>
+                            </div>
+                            <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
                                 <div style={{textAlign:'right'}}>
                                     <div style={{fontSize:'1.2rem', fontWeight:'bold', color:'#4caf50'}}>
                                         {inv.totalSum.toFixed(2)} € <span style={{fontSize: '0.7rem', color: '#aaa'}}>(ALV 0%)</span>
                                     </div>
                                 </div>
+                                <button onClick={() => handleApproveOne(inv)} className="save-btn" style={{background: '#2e7d32', padding: '8px 12px', fontSize: '0.9rem'}} title="Hyväksy vain tämä lasku">✅ Hyväksy</button>
                                 <button onClick={() => handlePrintManual(inv)} className="icon-btn" style={{fontSize:'1.5rem'}} title="Esikatselu">👁️</button>
                             </div>
                         </div>
