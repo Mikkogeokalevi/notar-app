@@ -1,8 +1,15 @@
 # Kärkölän Notar Oy - AI-kehitysohjeet
 
-**Projektin versio:** 1.7 (18.01.2026)  
+**Projektin versio:** 1.8 (tila tammikuu 2026)  
 **Teknologia:** React 19.2.0 + Vite 7.2.4 + Firebase Firestore + Firebase Auth  
-**Deploy:** GitHub Pages (`mikkogeokalevi.github.io/notar-app`)
+**Deploy:** GitHub Pages (`mikkogeokalevi.github.io/notar-app`), paivitys.bat (git push + npm run deploy)
+
+### Nykytila / mitä on tehty (22.01.2026)
+- **Kirjautuminen:** Vain sisäänkirjautuminen (rekisteröinti poistettu). Firestore-säännöt rajoittavat käyttöoikeuden `ALLOWED_EMAILS`-listaan.
+- **PWA:** manifest.json (start_url, ikonit), public/sw.js (offline + välimuisti), service worker rekisteröidään main.jsx:ssä, favicon index.htmlissa.
+- **Laskutus:** Isännöinti = erilliset laskut ryhmittäin (Erillistyöt, Liitetyöt, Sopimukset, Kiinteistöhuolto); yritys/yksityinen = yksi lasku per asiakas. Tarvike-erittely laskuriveillä (Työ/Tarvike alv0). Hyvitys- ja mitätöintisyyt tulostuksessa. Laskujen hyväksyntä valintaruuduilla. Nollaa KK-laskutustieto = KK-maksujen laskutettu-tila poistuu. Viitenumero vähintään 4 numeroa (7-3-1).
+- **Haamujen siivous:** Toimisto → Haamujen siivous – testiasiakkaat ja orvot kohteet (Tuntematon) voi listata ja poistaa.
+- **Koodi:** Kaikki päälogiikka App.jsx + src/-komponentit. Linterit siistitty.
 
 ---
 
@@ -28,8 +35,9 @@ Sovellus on **huoltokirjaus- ja laskutushallintajärjestelmä** kiinteistöhuolt
 - **App.css** - Kaikki tyylit (tumma teema, mobiilioptimoitu)
 - **package.json** - Riippuvuudet ja skriptit
 - **vite.config.js** - Vite-konfiguraatio (`base: '/notar-app/'` GitHub Pages varten)
-- **public/manifest.json** - PWA-manifesti (nimi, ikonit, start_url, display: standalone)
+- **public/manifest.json** - PWA-manifesti (nimi, ikonit 192/512, start_url `/notar-app/`, display: standalone)
 - **public/sw.js** - Service worker (offline, välimuisti). Päivitä `CACHE_NAME` (esim. `notar-app-v2`) jos haluat tyhjentää vanhat välimuistit.
+- **index.html** - Favicon: `<link rel="icon" href="app-icon.jpeg" />` (välilehden pieni logo).
 
 ---
 
@@ -81,6 +89,7 @@ Säännöt on määritelty Firebase-konsolissa ja ne:
 
 5. **invoices**
    - Laskut: `invoice_number`, `title`, `customer_id`, `customer_name`, `customer_type`, `billing_address`, `date`, `due_date`, `rows` (array), `total_sum`, `status` (open/sent/paid/cancelled), `month`
+   - Hyvitys: `type: 'credit_note'`, `credit_reason`. Mitätöity: `cancel_reason`.
 
 ---
 
@@ -102,23 +111,33 @@ Säännöt on määritelty Firebase-konsolissa ja ne:
 
 - Generoi laskuluonnokset kuukausittain laskuttamattomista `work_entries`-merkinnöistä
 - Automaattisesti luo kiinteät kuukausimaksut (`fixed_monthly`) sopimuksista
-- Ryhmittelee laskut asiakaskohtaisesti (isännöinnissä myös ryhmittäin)
-- Yhdistää saman työn massakirjaukset yhteen riviksi
+- **Laskujen jako:**
+  - **Isännöinti:** Erilliset laskut ryhmittäin – Erillistyöt, Liitetyöt, Sopimukset (KK), Kiinteistöhuolto (omina laskuinaan per ryhmä)
+  - **Yritys / Yksityinen:** Kaikki samassa laskussa (yksi lasku per asiakas)
+- **Tarvike-erittely:** Kun kirjauksessa on sekä työ että tarvike, laskulla yksi rivi: selite kerran, alla "Työ: X € (alv0)" ja "Tarvike: Y € (alv0)", rivin summa = yhteensä (InvoiceView + InvoiceArchive: `details` voi sisältää `\n`, tulostuksessa `\n` → `<br />`)
+- **Liitetyö-rivi:** Sama logiikka – yksi rivi, työ + tarvike eriteltynä, summa yhteensä
 - Laskunumero kasvaa automaattisesti (`invoice_start_number`)
-- **Hyväksyntä:** Voit valita laskut ruuduilla ja hyväksyä vain valitut ("Hyväksy valitut (N)") tai yhden kerrallaan ("Hyväksy"-nappi per lasku). Oletuksena kaikki valittuna.
-- **Nollaa KK-laskutustieto:** Poistaa valitun kuukauden KK-maksujen (Sopimukset) "laskutettu"-merkinnät (`work_entries` joissa `origin === 'fixed_fee'`). KK-maksut ilmestyvät uudelleen "Hae laskutettavat"-listalle. Käytä jos haluat perua KK-laskutuksen tai generoida listan uudestaan.
+- **Hyväksyntä:** Valintaruudut per lasku, "Valitse kaikki", "Hyväksy valitut (N)" ja per-lasku "Hyväksy"-nappi. Oletuksena kaikki valittuna; hyväksytyt poistuvat listalta
+- **Nollaa KK-laskutustieto:** Poistaa valitun kuukauden KK-maksujen (Sopimukset) "laskutettu"-merkinnät (`work_entries` joissa `origin === 'fixed_fee'`). KK-maksut tulevat uudelleen "Hae laskutettavat"-listalle
 
-### 3. Tulostus (InvoiceArchive.jsx)
+### 3. Tulostus (InvoiceView.jsx + InvoiceArchive.jsx)
 
 **"Flattened Table" -tekniikka:**
 - **EI käytetä** `position: fixed` header/footer-elementtejä (rikkoo sivutuksen)
-- Sen sijaan: Yksi iso `<table>` koko laskulle
-- `<thead>` toistaa ylätunnisteen jokaisella sivulla
-- `<tfoot>` toistaa alatunnisteen (viivakoodi) jokaisella sivulla
-- `<tbody>` sisältää datarivit, jotka juoksevat sivujen yli
-- Sivunumerointia ei ole (selaimet eivät tue sitä luotettavasti)
+- Yksi iso `<table>` koko laskulle; `<thead>` / `<tfoot>` toistuvat sivulla; `<tbody>` datarivit
+- Sivunumerointia ei ole
 
-### 4. ALV-käsittely
+**Erityisesti:**
+- **Hyvityslasku:** Tulosteessa "Hyvityksen syy: …" (credit_reason) vastaanottolaatikon alla
+- **Mitätöity lasku:** Otsikko "LASKU – MITÄTÖITY", alla "Mitätöinnin syy: …" (cancel_reason)
+- **Viitenumero:** Suomalainen viitenumero 7-3-1, väh. 4 numeroa. Pohja = 1000 + laskunumero (esim. lasku 1 → viite 1001X), jotta viite EI ala nollalla – pankkiohjelmat typistävät alkuperän ja tarjoavat kolme numeroa
+
+### 4. Muut käytännöt
+
+- **Pikalasku-modali (Luo uusi lasku):** Kannettavalla vieritys – overlay `alignItems: flex-start`, `overflowY: auto`, `padding`, jotta "Tallenna & Luo Lasku" ja "Lisää rivi" tulevat näkyviin
+- **Haamujen siivous:** Toimisto → Haamujen siivous. Listaa kaikki asiakkaat (poista testiasiakkaat) ja orvot kohteet ("Tuntematon") – nämä voi poistaa, jolloin ne katoavat Auraus/Lumen poisvienti -listoilta
+
+### 5. ALV-käsittely
 
 - **B2B (Yritys/Isännöinti):** Hinnat syötetään verottomina (ALV 0%), verollinen hinta lasketaan automaattisesti
 - **B2C (Yksityinen):** Hinnat syötetään verollisina (sis. ALV)
@@ -147,6 +166,7 @@ Säännöt on määritelty Firebase-konsolissa ja ne:
 
 ## 📝 VERSIOHISTORIA
 
+- **1.8** (22.01.2026) - Rekisteröinti poistettu, Firebase-säännöt ALLOWED_EMAILS; PWA (manifest, sw.js, favicon); Haamujen siivous; laskujen hyväksyntä valintaruuduilla; hyvitys/mitätöintisyyt tulosteessa; viitenumero min 4 numeroa; KK-laskutustiedon nollaus selvennetty
 - **1.7** (18.01.2026) - Työkirjaukset eroteltu massaksi/täsmäksi, tulostus uudelleenrakennettu
 - **1.6** (17.01.2026) - ALV-erittely laskuille
 - **1.5** (17.01.2026) - Laskuarkiston laajennettu muokkaus
@@ -178,4 +198,4 @@ npm run deploy       # Deployaa gh-pages -haaraan (GitHub Pages)
 
 ---
 
-**Viimeisin päivitys:** 22.01.2026 (Rekisteröinti poistettu, Firebase-säännöt päivitetty)
+**Viimeisin päivitys:** 22.01.2026 (ai_rules.md päivitetty istunnon yhteenvedolla: kirjautuminen, PWA, laskutus, Haamujen siivous, versio 1.8)

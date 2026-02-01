@@ -45,11 +45,11 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
     const uniqueCustomers = [...new Set(invoices.map(i => i.customer_name))].sort();
 
     // --- APUFUNKTIOT ---
-    // Suomalainen viitenumero: väh. 4 numeroa (pankit hylkäävät lyhyemmän)
+    // Suomalainen viitenumero: 7-3-1, väh. 4 numeroa, EI ala nollalla (pankit typistävät alkuperän)
     const generateReferenceNumber = (invoiceNum) => {
         if (!invoiceNum) return "";
-        let base = String(invoiceNum).replace(/\D/g, '');
-        if (base.length < 3) base = base.padStart(3, '0');
+        const num = parseInt(String(invoiceNum).replace(/\D/g, ''), 10) || 0;
+        const base = String(1000 + num); // 1001, 1002, ... → ei koskaan 0-alkuinen
         const weights = [7, 3, 1];
         let sum = 0;
         for (let i = 0; i < base.length; i++) sum += parseInt(base.charAt(base.length - 1 - i), 10) * weights[i % 3];
