@@ -702,7 +702,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
 
             {/* PIKALASKU MODAALI */}
             {showQuickModal && (
-                <div className="modal-overlay">
+                <div className="modal-overlay" style={{alignItems: 'flex-start', overflowY: 'auto', padding: '20px'}}>
                     <div className="modal-content" style={{maxWidth: '800px'}}>
                         <h3>Uusi Lasku (Manuaalinen)</h3>
                         <p style={{fontSize:'0.9rem', color:'#aaa', marginBottom:'15px'}}>Uusi asiakas tallentuu automaattisesti rekisteriin.</p>

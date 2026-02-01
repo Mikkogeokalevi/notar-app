@@ -214,6 +214,11 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
         document.body.appendChild(iframe);
 
         const doc = iframe.contentWindow.document;
+
+        const esc = (s) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const printTitle = inv.status === 'cancelled' ? 'LASKU – MITÄTÖITY' : (inv.total_sum < 0 ? 'HYVITYSLASKU' : 'LASKU');
+        const creditReasonBlock = inv.type === 'credit_note' && inv.credit_reason ? `<div style="margin-bottom:15px; padding:10px; background:#f5f5f5; border:1px solid #999; font-size:12px;"><strong>Hyvityksen syy:</strong> ${esc(inv.credit_reason)}</div>` : '';
+        const cancelReasonBlock = inv.status === 'cancelled' && inv.cancel_reason ? `<div style="margin-bottom:15px; padding:10px; background:#ffebee; border:1px solid #c62828; font-size:12px; color:#b71c1c;"><strong>Mitätöinnin syy:</strong> ${esc(inv.cancel_reason)}</div>` : '';
         
         const rowsHtml = inv.rows.map(r => {
             if (r.type === 'header') return `<tr class="row-header"><td colspan="2">${r.text}</td></tr>`;
@@ -282,7 +287,7 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                                         ${companyInfo.email ? `<div>Email: ${companyInfo.email}</div>` : ''}
                                     </div>
                                     <div style="width: 40%; text-align: right;">
-                                        <div class="header-title" style="margin-bottom:10px">${inv.total_sum < 0 ? 'HYVITYSLASKU' : 'LASKU'}</div>
+                                        <div class="header-title" style="margin-bottom:10px">${printTitle}</div>
                                         <div><span class="meta-label">PÄIVÄMÄÄRÄ:</span> <span>${billDate}</span></div>
                                         <div><span class="meta-label">LASKUN NRO:</span> <span>${invoiceNum}</span></div>
                                         <div><span class="meta-label">VIITENUMERO:</span> <span>${refNum}</span></div>
@@ -314,6 +319,8 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                                     <b>${inv.customer_name}</b><br>
                                     ${inv.billing_address ? inv.billing_address.replace(',', '<br>') : ''}
                                 </div>
+                                ${creditReasonBlock}
+                                ${cancelReasonBlock}
 
                                 <table class="invoice-data">
                                     <thead>
