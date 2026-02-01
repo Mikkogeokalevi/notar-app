@@ -560,6 +560,87 @@ const CustomerView = ({ onBack, availableTasks, showNotification, requestConfirm
     );
 };
 
+// --- HAAMUJEN SIIVOUS (testiasiakkaat, Tuntematon-kohteet) ---
+const GhostCleanupView = ({ onBack, showNotification, requestConfirm }) => {
+    const [asiakkaat, setAsiakkaat] = useState([]);
+    const [orvotKohteet, setOrvotKohteet] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const haeData = async () => {
+        setLoading(true);
+        try {
+            const custSnap = await getDocs(collection(db, "customers"));
+            const customers = custSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const customerIds = new Set(customers.map(c => c.id));
+
+            const propSnap = await getDocs(collection(db, "properties"));
+            const orvot = propSnap.docs
+                .map(d => ({ id: d.id, ...d.data() }))
+                .filter(p => !customerIds.has(p.customer_id));
+
+            setAsiakkaat(customers);
+            setOrvotKohteet(orvot);
+        } catch (e) {
+            showNotification("Virhe: " + e.message, "error");
+        }
+        setLoading(false);
+    };
+
+    useEffect(() => { haeData(); }, []);
+
+    const poistaAsiakas = (a) => {
+        requestConfirm(`Poistetaanko asiakas "${a.name}"? Sen kohteet jäävät "orvoiksi" ja näkyvät alla.`, async () => {
+            await deleteDoc(doc(db, "customers", a.id));
+            showNotification("Asiakas poistettu.", "success");
+            haeData();
+        });
+    };
+
+    const poistaKohde = (k) => {
+        requestConfirm(`Poistetaanko kohde "${k.address}" (Tuntematon)?`, async () => {
+            await deleteDoc(doc(db, "properties", k.id));
+            showNotification("Kohde poistettu.", "success");
+            haeData();
+        });
+    };
+
+    if (loading) return <div className="admin-section"><p style={{color:'#aaa'}}>Ladataan...</p></div>;
+
+    return (
+        <div className="admin-section">
+            <button onClick={onBack} className="back-btn">&larr; Takaisin</button>
+            <h2>Haamujen siivous</h2>
+            <p style={{color:'#aaa', marginBottom:'20px', fontSize:'0.9rem'}}>
+                Täällä voit poistaa testiasiakkaat ja "Tuntematon"-kohteet (orvot), jotka näkyvät Aurauksessa / Lumen poisviennissä mutta eivät oikeassa asiakasrekisterissä.
+            </p>
+
+            <div className="card-box">
+                <h3>Kaikki asiakkaat ({asiakkaat.length})</h3>
+                <p style={{fontSize:'0.85rem', color:'#888', marginBottom:'10px'}}>Poista tästä esim. "testi asiakas" – se katoaa myös työtehtävien listoilta.</p>
+                {asiakkaat.length === 0 && <p style={{color:'#666'}}>Ei asiakkaita.</p>}
+                {asiakkaat.map(a => (
+                    <div key={a.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px', borderBottom:'1px solid #333'}}>
+                        <span><strong>{a.name}</strong> <span style={{color:'#888', fontSize:'0.85rem'}}>({a.type === 'isannointi' ? 'Isännöinti' : a.type === 'b2b' ? 'Yritys' : 'Yksityinen'})</span></span>
+                        <button onClick={() => poistaAsiakas(a)} className="icon-btn delete-btn" title="Poista asiakas">🗑️</button>
+                    </div>
+                ))}
+            </div>
+
+            <div className="card-box" style={{borderColor: orvotKohteet.length ? '#f57c00' : undefined}}>
+                <h3>Orvot kohteet – "Tuntematon" ({orvotKohteet.length})</h3>
+                <p style={{fontSize:'0.85rem', color:'#888', marginBottom:'10px'}}>Kohteita, joiden asiakas on jo poistettu. Nämä näkyvät Aurauksessa nimellä Tuntematon. Poista ne tästä.</p>
+                {orvotKohteet.length === 0 && <p style={{color:'#666'}}>Ei orpoja kohteita.</p>}
+                {orvotKohteet.map(k => (
+                    <div key={k.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px', borderBottom:'1px solid #333'}}>
+                        <span><strong>{k.address || '(Ei osoitetta)'}</strong> <span style={{color:'#888', fontSize:'0.85rem'}}>Ryhmä: {k.group || '-'}</span></span>
+                        <button onClick={() => poistaKohde(k)} className="icon-btn delete-btn" title="Poista kohde">🗑️</button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 // PÄÄOHJELMA
 function App() {
   const [user, setUser] = useState(null); 
@@ -624,6 +705,7 @@ function App() {
           <div className="work-button" style={{backgroundColor: '#37474f'}} onClick={() => setCurrentView('archive')}><h3>🗄️ Laskuarkisto</h3></div>
 		  <div className="work-button" style={{backgroundColor: '#6a1b9a'}} onClick={() => setCurrentView('reports')}><h3>📊 Raportit</h3></div>
           <div className="work-button" style={{backgroundColor: '#607d8b'}} onClick={() => setCurrentView('instructions')}><h3>📖 Ohjekirja</h3></div>
+          <div className="work-button" style={{backgroundColor: '#c62828'}} onClick={() => setCurrentView('ghostCleanup')}><h3>🧹 Haamujen siivous</h3></div>
         </div>
         
         <button onClick={handleLogout} className="back-btn" style={{marginTop: '40px', borderColor: '#d32f2f', color: '#d32f2f'}}>
@@ -662,6 +744,7 @@ function App() {
       {currentView === 'archive' && <InvoiceArchive onBack={() => setCurrentView('admin')} showNotification={showNotification} requestConfirm={requestConfirm} />}
 	  {currentView === 'reports' && <ReportsView onBack={() => setCurrentView('admin')} />}
       {currentView === 'instructions' && <InstructionsView onBack={() => setCurrentView('admin')} />}
+      {currentView === 'ghostCleanup' && <GhostCleanupView onBack={() => setCurrentView('admin')} showNotification={showNotification} requestConfirm={requestConfirm} />}
 
       <footer className="footer-logo-container">
           <img src="alaMKlogo.png" alt="mikkokalevi 2026 © All Rights Reserved." className="footer-logo" />
