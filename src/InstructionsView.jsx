@@ -14,6 +14,16 @@ const InstructionsView = ({ onBack }) => {
             ]
         },
         {
+            version: "1.8",
+            date: "01.02.2026",
+            changes: [
+                "Kirjautuminen: Rekisteröinti poistettu – vain sallitut käyttäjät voivat kirjautua. Firebase-säännöt rajoittavat käyttöoikeuden.",
+                "PWA: Parannettu asennus (manifest, offline-välimuisti, favicon). Sovellus toimii luotettavammin puhelimella.",
+                "Laskutus: Laskujen hyväksyntä valintaruuduilla (yksi tai useampia kerralla). Hyvitys- ja mitätöintisyyt tulostuvat laskuille. Nollaa KK-laskutustieto -nappi selvennetty.",
+                "Toimisto: Haamujen siivous – testiasiakkaat ja orvot kohteet (Tuntematon) voi listata ja poistaa."
+            ]
+        },
+        {
             version: "1.7",
             date: "18.01.2026",
             changes: [

@@ -167,7 +167,7 @@ Säännöt on määritelty Firebase-konsolissa ja ne:
 ## 📝 VERSIOHISTORIA
 
 - **1.9** (01.02.2026) - Viitenumero ei ala nollalla (pohja 1000 + laskunumero), pankkiohjelmat eivät typistä viitettä
-- **1.8** (22.01.2026) - Rekisteröinti poistettu, Firebase-säännöt ALLOWED_EMAILS; PWA (manifest, sw.js, favicon); Haamujen siivous; laskujen hyväksyntä valintaruuduilla; hyvitys/mitätöintisyyt tulosteessa; viitenumero min 4 numeroa; KK-laskutustiedon nollaus selvennetty
+- **1.8** (01.02.2026) - Rekisteröinti poistettu, Firebase-säännöt ALLOWED_EMAILS; PWA (manifest, sw.js, favicon); Haamujen siivous; laskujen hyväksyntä valintaruuduilla; hyvitys/mitätöintisyyt tulosteessa; viitenumero min 4 numeroa; KK-laskutustiedon nollaus selvennetty
 - **1.7** (18.01.2026) - Työkirjaukset eroteltu massaksi/täsmäksi, tulostus uudelleenrakennettu
 - **1.6** (17.01.2026) - ALV-erittely laskuille
 - **1.5** (17.01.2026) - Laskuarkiston laajennettu muokkaus
