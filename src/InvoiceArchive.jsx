@@ -218,7 +218,8 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
         const rowsHtml = inv.rows.map(r => {
             if (r.type === 'header') return `<tr class="row-header"><td colspan="2">${r.text}</td></tr>`;
             let displayPrice = isB2C ? r.total : r.total / alvDivisor;
-            return `<tr><td>${r.text} ${r.details ? `<span class="small-text">${r.details}</span>` : ''}</td><td style="text-align:right; vertical-align:top;">${displayPrice.toFixed(2)} €</td></tr>`;
+            const detailsHtml = r.details ? (r.details || '').replace(/\n/g, '<br />') : '';
+            return `<tr><td>${r.text} ${detailsHtml ? `<span class="small-text">${detailsHtml}</span>` : ''}</td><td style="text-align:right; vertical-align:top;">${displayPrice.toFixed(2)} €</td></tr>`;
         }).join('');
 
         doc.open();

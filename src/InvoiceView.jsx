@@ -393,11 +393,10 @@ const InvoiceView = ({ onBack, showNotification }) => {
                         let text = e.description || e.task_name;
                         if (e.task_type !== 'fixed_monthly') text = `${new Date(e.date).getDate()}.${new Date(e.date).getMonth()+1}. ${text}`;
                         if (workNet > 0 && matNet > 0) {
-                            const workGross = workNet * alvMultiplier;
-                            const matGross = matNet * alvMultiplier;
-                            totalSumGross += workGross + matGross;
-                            rows.push({ type: 'row', text: text, details: `Työ: ${workNet.toFixed(2)} € (alv0)`, total: workGross });
-                            rows.push({ type: 'row', text: text + ' – Tarvike', details: `Tarvike: ${matNet.toFixed(2)} € (alv0)`, total: matGross });
+                            const rowNet = workNet + matNet;
+                            const rowGross = rowNet * alvMultiplier;
+                            totalSumGross += rowGross;
+                            rows.push({ type: 'row', text: text, details: `Työ: ${workNet.toFixed(2)} € (alv0)\nTarvike: ${matNet.toFixed(2)} € (alv0)`, total: rowGross });
                         } else if (workNet > 0) {
                             const rowGross = workNet * alvMultiplier;
                             totalSumGross += rowGross;
@@ -492,7 +491,8 @@ const InvoiceView = ({ onBack, showNotification }) => {
         const rowsHtml = inv.rows.map(r => {
             if (r.type === 'header') return `<tr class="row-header"><td colspan="2">${r.text}</td></tr>`;
             let displayPrice = isB2C ? r.total : r.total / alvMultiplier;
-            return `<tr><td>${r.text} ${r.details ? `<span class="small-text">${r.details}</span>` : ''}</td><td style="text-align:right; vertical-align:top;">${displayPrice.toFixed(2)} €</td></tr>`;
+            const detailsHtml = r.details ? (r.details || '').replace(/\n/g, '<br />') : '';
+            return `<tr><td>${r.text} ${detailsHtml ? `<span class="small-text">${detailsHtml}</span>` : ''}</td><td style="text-align:right; vertical-align:top;">${displayPrice.toFixed(2)} €</td></tr>`;
         }).join('');
 
         doc.open();
@@ -689,7 +689,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                                 <tbody>
                                     {inv.rows.map((row, rIndex) => (
                                         <tr key={rIndex} style={{borderBottom: row.type === 'header' ? '2px solid #444' : '1px solid #2c2c2c', background: row.type === 'header' ? '#2c2c2c' : 'transparent'}}>
-                                            {row.type === 'header' ? (<td colSpan="2" style={{padding:'15px 5px 5px 5px', fontWeight:'bold', color:'#2196f3', fontSize:'1rem'}}>{row.text}</td>) : (<><td style={{padding:'8px 5px'}}>{row.text}<br/><small style={{color:'#aaa'}}>{row.details}</small></td><td style={{textAlign:'right', fontWeight:'bold'}}>{row.total.toFixed(2)} €</td></>)}
+                                            {row.type === 'header' ? (<td colSpan="2" style={{padding:'15px 5px 5px 5px', fontWeight:'bold', color:'#2196f3', fontSize:'1rem'}}>{row.text}</td>) : (<><td style={{padding:'8px 5px'}}>{row.text}<br/><small style={{color:'#aaa', whiteSpace:'pre-line'}}>{row.details}</small></td><td style={{textAlign:'right', fontWeight:'bold'}}>{row.total.toFixed(2)} €</td></>)}
                                         </tr>
                                     ))}
                                 </tbody>
