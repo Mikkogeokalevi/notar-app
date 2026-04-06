@@ -394,7 +394,8 @@ const AsiakasKortti = ({ asiakas, onBack, onDeleted, availableTasks, showNotific
         ...asiakas, 
         contracts: asiakas.contracts || {}, group_names: asiakas.group_names || [],
         street: asiakas.street || '', zip: asiakas.zip || '', city: asiakas.city || '', phone: asiakas.phone || '', email: asiakas.email || '',
-        payment_term_type: asiakas.payment_term_type || '14pv', fixed_due_day: asiakas.fixed_due_day || ''
+        payment_term_type: asiakas.payment_term_type || '14pv', fixed_due_day: asiakas.fixed_due_day || '',
+        bill_fixed_monthly_next_month: !!asiakas.bill_fixed_monthly_next_month
     });
     const [kohteet, setKohteet] = useState([]);
     const [uusiRyhmaNimi, setUusiRyhmaNimi] = useState('');
@@ -455,6 +456,18 @@ const AsiakasKortti = ({ asiakas, onBack, onDeleted, availableTasks, showNotific
                   {form.payment_term_type === 'fixed' && (<div style={{display:'flex', alignItems:'center', gap:'5px'}}><span style={{fontSize:'0.9rem'}}>Päivä:</span><input type="number" placeholder="PP" value={form.fixed_due_day || ''} onChange={e => setForm({...form, fixed_due_day: e.target.value})} style={{width: '60px', textAlign: 'center'}} min="1" max="31"/></div>)}
               </div>
               <p style={{fontSize:'0.8em', color:'#aaa', marginTop:'8px', fontStyle:'italic'}}>Jos lasku tehdään tänään, eräpäiväksi tulee: <strong style={{color:'#4caf50'}}>{getExampleDueDate()}</strong></p>
+          </div>
+
+          <div style={{marginTop: '15px', padding: '12px', background: '#1e1e1e', borderRadius: '8px', border: '1px solid #333'}}>
+              <label style={{display:'flex', alignItems:'center', gap:'10px', color:'#ddd'}}>
+                  <input
+                      type="checkbox"
+                      className="big-checkbox"
+                      checked={!!form.bill_fixed_monthly_next_month}
+                      onChange={(e) => setForm({ ...form, bill_fixed_monthly_next_month: e.target.checked })}
+                  />
+                  Laskuta kk-sopimukset seuraavalta kuulta (etukäteen)
+              </label>
           </div>
           <button onClick={tallennaMuutokset} className="save-btn" style={{marginTop:'20px', width: '100%'}}>Tallenna muutokset</button>
         </div>

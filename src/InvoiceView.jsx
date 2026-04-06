@@ -23,6 +23,32 @@ const InvoiceView = ({ onBack, showNotification }) => {
         return d.toISOString().slice(0, 10);
     };
 
+    const calculateDueDateByCustomer = (invoiceDateStr, customer) => {
+        const base = new Date(invoiceDateStr);
+        const termType = customer?.payment_term_type || '14pv';
+
+        if (termType === 'fixed') {
+            const targetDay = parseInt(customer?.fixed_due_day, 10);
+            if (!targetDay) return calculateDueDate(invoiceDateStr, 14);
+
+            const year = base.getFullYear();
+            const month = base.getMonth();
+            const daysInThisMonth = new Date(year, month + 1, 0).getDate();
+            const safeDay = Math.min(targetDay, daysInThisMonth);
+            let due = new Date(year, month, safeDay);
+            if (base.getDate() > safeDay) {
+                const daysInNextMonth = new Date(year, month + 2, 0).getDate();
+                const nextSafeDay = Math.min(targetDay, daysInNextMonth);
+                due = new Date(year, month + 1, nextSafeDay);
+            }
+            return due.toISOString().slice(0, 10);
+        }
+
+        const daysMap = { '7pv': 7, '14pv': 14, '30pv': 30 };
+        const daysToAdd = daysMap[termType] ?? (parseInt(termType, 10) || 14);
+        return calculateDueDate(invoiceDateStr, daysToAdd);
+    };
+
     // Oletusarvot pikalaskulle
     const [quickForm, setQuickForm] = useState({
         customer_id: '',
@@ -392,8 +418,8 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 const rows = [];
                 let totalSumGross = 0;
                 entries.sort((a, b) => (a.property_address || 'ZZZ').localeCompare(b.property_address || 'ZZZ') || new Date(a.date) - new Date(b.date));
-                
-                const propertyGroups = {}; 
+
+                const propertyGroups = {};
                 entries.forEach(e => {
                     let kp = e.cost_center || propertyLookup[e.property_id]?.cost_center;
                     let propKey = customer.type === 'b2c' ? (e.property_address || 'Yksityinen') : (kp ? `Viite: KP ${kp} / ${e.property_address}` : `Viite: - / ${e.property_address}`);
@@ -403,10 +429,10 @@ const InvoiceView = ({ onBack, showNotification }) => {
 
                 Object.entries(propertyGroups).forEach(([propHeader, propEntries]) => {
                     if (customer.type !== 'b2c' || Object.keys(propertyGroups).length > 1) rows.push({ type: 'header', text: propHeader });
-                    
+
                     const massMap = {};
                     const singles = [];
-                    
+
                     propEntries.forEach(e => {
                         const isMass = ['checkbox', 'kg', 'fixed', 'hourly'].includes(e.task_type) && !['extra', 'material', 'fixed_monthly'].includes(e.task_type);
                         if (isMass) {
@@ -444,13 +470,15 @@ const InvoiceView = ({ onBack, showNotification }) => {
                         }
                     });
                 });
-                return { id: bucket.key, customerId: customer.id, customerName: customer.name, invoiceTitle: bucket.title, customerType: customer.type, customer_y_tunnus: customer.y_tunnus || '', billingAddress: `${customer.street || ''}, ${customer.zip || ''} ${customer.city || ''}`, rows: rows, totalSum: totalSumGross / alvMultiplier, rawEntries: entries };
+
+                return { id: bucket.key, customer: customer, customerId: customer.id, customerName: customer.name, invoiceTitle: bucket.title, customerType: customer.type, customer_y_tunnus: customer.y_tunnus || '', billingAddress: `${customer.street || ''}, ${customer.zip || ''} ${customer.city || ''}`, rows: rows, totalSum: totalSumGross / alvMultiplier, rawEntries: entries };
             });
 
             const sorted = finalInvoices.sort((a,b) => a.invoiceTitle.localeCompare(b.invoiceTitle));
             setInvoices(sorted);
             setSelectedForApproval(new Set(sorted.map(inv => inv.id)));
             showNotification(`Luotu ${finalInvoices.length} laskuluonnosta.`, "success");
+
         } catch (error) { console.error(error); showNotification("Virhe: " + error.message, "error"); } finally { setLoading(false); }
     };
 
@@ -474,9 +502,10 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 const invoiceNumberStr = currentInvoiceNum.toString();
                 currentInvoiceNum++;
                 const invoiceRef = doc(collection(db, "invoices")); 
-                const d = new Date(); d.setDate(d.getDate() + 14);
+                const invoiceDateStr = new Date().toISOString().slice(0, 10);
+                const dueDateStr = calculateDueDateByCustomer(invoiceDateStr, invoice.customer || {});
                 batch.set(invoiceRef, {
-                    invoice_number: invoiceNumberStr, title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, customer_y_tunnus: invoice.customer_y_tunnus || '', billing_address: invoice.billingAddress, month: selectedMonth, date: new Date().toISOString().slice(0, 10), due_date: d.toISOString().slice(0, 10), rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
+                    invoice_number: invoiceNumberStr, title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, customer_y_tunnus: invoice.customer_y_tunnus || '', billing_address: invoice.billingAddress, month: selectedMonth, date: invoiceDateStr, due_date: dueDateStr, rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
                 });
 
                 for (const entry of invoice.rawEntries) {
@@ -502,11 +531,12 @@ const InvoiceView = ({ onBack, showNotification }) => {
             const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
             const alvMultiplier = 1 + (alvRate / 100);
             const invoiceRef = doc(collection(db, "invoices"));
-            const d = new Date(); d.setDate(d.getDate() + 14);
+            const invoiceDateStr = new Date().toISOString().slice(0, 10);
+            const dueDateStr = calculateDueDateByCustomer(invoiceDateStr, invoice.customer || {});
             const batch = writeBatch(db);
             const timestamp = serverTimestamp();
             batch.set(invoiceRef, {
-                invoice_number: currentInvoiceNum.toString(), title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, customer_y_tunnus: invoice.customer_y_tunnus || '', billing_address: invoice.billingAddress, month: selectedMonth, date: new Date().toISOString().slice(0, 10), due_date: d.toISOString().slice(0, 10), rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
+                invoice_number: currentInvoiceNum.toString(), title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, customer_y_tunnus: invoice.customer_y_tunnus || '', billing_address: invoice.billingAddress, month: selectedMonth, date: invoiceDateStr, due_date: dueDateStr, rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
             });
 
             for (const entry of invoice.rawEntries) {
