@@ -175,7 +175,7 @@ const WorkView = ({ availableTasks, onOpenLog, showNotification }) => {
                 const price = kohde.contracts?.[valittuTehtava.id]?.price || 0;
 
                 await addDoc(collection(db, "work_entries"), {
-                    task_id: valittuTehtava.id, task_name: valittuTehtava.label, task_type: 'checkbox', task_color: valittuTehtava.color,
+                    task_id: valittuTehtava.id, task_name: valittuTehtava.label, task_type: valittuTehtava.type, task_color: valittuTehtava.color,
                     customer_id: customerId, customer_name: customerName, property_id: propertyId, property_address: address,
                     group: group, date: pvm, price_work: price, created_at: serverTimestamp(), invoiced: false
                 });
@@ -211,9 +211,24 @@ const WorkView = ({ availableTasks, onOpenLog, showNotification }) => {
                 date: pvm, description: selite, created_at: serverTimestamp(), invoiced: false
             };
 
-            if (valittuTehtava.type === 'kg' || valittuTehtava.type === 'hourly') {
-                data.price_work = hinta1; 
-                data.price_material = hinta2 || 0;
+            if (valittuTehtava.type === 'kg') {
+                const qty = parseFloat(hinta1) || 0;
+                let unitPrice = 0;
+
+                if (valittuKohdeId) {
+                    const k = asiakkaanKohteet.find(x => x.id === valittuKohdeId);
+                    const propContract = k?.contracts?.[valittuTehtava.id];
+                    if (propContract?.active) unitPrice = parseFloat(propContract.price || 0);
+                }
+
+                if (!unitPrice) {
+                    const custContract = asiakas?.contracts?.[valittuTehtava.id];
+                    if (custContract?.active) unitPrice = parseFloat(custContract.price || 0);
+                }
+
+                data.value = qty;
+                data.price_work = unitPrice;
+                data.price_material = 0;
             } else {
                 data.price_work = hinta1;
                 data.price_material = hinta2 || 0;
@@ -359,7 +374,7 @@ const WorkView = ({ availableTasks, onOpenLog, showNotification }) => {
 
                     <div className="form-row">
                         <div>
-                            <label>{valittuTehtava.type === 'kg' ? 'Määrä (kg) / Hinta (€)' : 'Työ Hinta (€)'}</label>
+                            <label>{valittuTehtava.type === 'kg' ? 'Määrä (kg)' : 'Työ Hinta (€)'}</label>
                             <input type="number" value={hinta1} onChange={e => setHinta1(e.target.value)} placeholder="0.00" />
                         </div>
                         {['material', 'extra', 'hourly'].includes(valittuTehtava.type) && (
