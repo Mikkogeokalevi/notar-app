@@ -16,15 +16,28 @@ const InvoiceView = ({ onBack, showNotification }) => {
     const [showQuickModal, setShowQuickModal] = useState(false);
     const [customers, setCustomers] = useState([]); 
     
+    const formatDateLocal = (dateObj) => {
+        const y = dateObj.getFullYear();
+        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const d = String(dateObj.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    };
+
+    const parseDateLocal = (dateStr) => {
+        if (!dateStr) return new Date();
+        if (dateStr instanceof Date) return dateStr;
+        return new Date(`${dateStr}T00:00:00`);
+    };
+
     // Apufunktio: Laske eräpäivä
     const calculateDueDate = (startDate, termDays) => {
-        const d = new Date(startDate);
+        const d = parseDateLocal(startDate);
         d.setDate(d.getDate() + parseInt(termDays));
-        return d.toISOString().slice(0, 10);
+        return formatDateLocal(d);
     };
 
     const calculateDueDateByCustomer = (invoiceDateStr, customer) => {
-        const base = new Date(invoiceDateStr);
+        const base = parseDateLocal(invoiceDateStr);
         const termType = customer?.payment_term_type || '14pv';
 
         if (termType === 'fixed') {
@@ -41,7 +54,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 const nextSafeDay = Math.min(targetDay, daysInNextMonth);
                 due = new Date(year, month + 1, nextSafeDay);
             }
-            return due.toISOString().slice(0, 10);
+            return formatDateLocal(due);
         }
 
         const daysMap = { '7pv': 7, '14pv': 14, '30pv': 30 };
@@ -56,10 +69,10 @@ const InvoiceView = ({ onBack, showNotification }) => {
         address: '',
         type: 'b2c', 
         payment_term: 14,
-        date: new Date().toISOString().slice(0, 10),
-        due_date: calculateDueDate(new Date().toISOString().slice(0, 10), 14),
+        date: formatDateLocal(new Date()),
+        due_date: calculateDueDate(formatDateLocal(new Date()), 14),
         rows: [{ 
-            date: new Date().toISOString().slice(0, 10), 
+            date: formatDateLocal(new Date()), 
             text: '', 
             price_work: '',     
             price_material: ''  
@@ -249,9 +262,9 @@ const InvoiceView = ({ onBack, showNotification }) => {
             setShowQuickModal(false);
             setQuickForm({ 
                 customer_id: '', customer_name: '', address: '', type: 'b2c', payment_term: 14,
-                date: new Date().toISOString().slice(0, 10), 
-                due_date: calculateDueDate(new Date().toISOString().slice(0, 10), 14),
-                rows: [{ date: new Date().toISOString().slice(0, 10), text: '', price_work: '', price_material: '' }] 
+                date: formatDateLocal(new Date()), 
+                due_date: calculateDueDate(formatDateLocal(new Date()), 14),
+                rows: [{ date: formatDateLocal(new Date()), text: '', price_work: '', price_material: '' }] 
             });
 
         } catch (error) {
@@ -292,7 +305,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
         euros = euros.padStart(6, '0').slice(-6);
         const amountPart = euros + cents;
         const refPart = ref.replace(/[^0-9]/g, '').padStart(20, '0');
-        const d = new Date(dueDateStr);
+        const d = parseDateLocal(dueDateStr);
         const yy = d.getFullYear().toString().slice(-2);
         const mm = (d.getMonth() + 1).toString().padStart(2, '0');
         const dd = d.getDate().toString().padStart(2, '0');
@@ -502,7 +515,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 const invoiceNumberStr = currentInvoiceNum.toString();
                 currentInvoiceNum++;
                 const invoiceRef = doc(collection(db, "invoices")); 
-                const invoiceDateStr = new Date().toISOString().slice(0, 10);
+                const invoiceDateStr = formatDateLocal(new Date());
                 const dueDateStr = calculateDueDateByCustomer(invoiceDateStr, invoice.customer || {});
                 batch.set(invoiceRef, {
                     invoice_number: invoiceNumberStr, title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, customer_y_tunnus: invoice.customer_y_tunnus || '', billing_address: invoice.billingAddress, month: selectedMonth, date: invoiceDateStr, due_date: dueDateStr, rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
@@ -531,7 +544,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
             const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
             const alvMultiplier = 1 + (alvRate / 100);
             const invoiceRef = doc(collection(db, "invoices"));
-            const invoiceDateStr = new Date().toISOString().slice(0, 10);
+            const invoiceDateStr = formatDateLocal(new Date());
             const dueDateStr = calculateDueDateByCustomer(invoiceDateStr, invoice.customer || {});
             const batch = writeBatch(db);
             const timestamp = serverTimestamp();
@@ -558,10 +571,11 @@ const InvoiceView = ({ onBack, showNotification }) => {
         const invoiceNum = inv.invoice_number || "Luonnos";
         const refNum = generateReferenceNumber(invoiceNum);
         const billDate = new Date(inv.date || new Date()).toLocaleDateString('fi-FI');
-        
-        const dueDate = inv.due_date 
-            ? new Date(inv.due_date).toLocaleDateString('fi-FI') 
-            : calculateDueDate(inv.date || new Date(), 14).split('-').reverse().join('.');
+
+        const dueDateStrForPreview = inv.due_date
+            ? inv.due_date
+            : calculateDueDateByCustomer(formatDateLocal(parseDateLocal(inv.date || formatDateLocal(new Date()))), inv.customer || {});
+        const dueDate = parseDateLocal(dueDateStrForPreview).toLocaleDateString('fi-FI');
 
         // Tulostukseen tarvitaan verollinen summa
         const totalGross = inv.totalSum * alvMultiplier;
@@ -570,7 +584,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
             companyInfo.iban, 
             totalGross, 
             refNum, 
-            inv.due_date || inv.date
+            dueDateStrForPreview
         );
 
         let customerYtunnus = inv.customer_y_tunnus || inv.customerYtunnus || inv.y_tunnus || '';
