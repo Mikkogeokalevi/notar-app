@@ -439,7 +439,7 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                                 {inv.type === 'credit_note' && <span style={{background:'#d32f2f', color:'white', padding:'2px 5px', borderRadius:'3px', fontSize:'0.7rem', fontWeight:'bold'}}>HYVITYS</span>}
                                 {inv.status === 'cancelled' && <span style={{background:'#333', border:'1px solid #d32f2f', color:'#d32f2f', padding:'2px 5px', borderRadius:'3px', fontSize:'0.7rem', fontWeight:'bold'}}>MITÄTÖITY</span>}
                             </div>
-                            <div style={{fontSize:'0.8rem', color:'#aaa'}}>{inv.date} • {inv.total_sum.toFixed(2)} €</div>
+                            <div style={{fontSize:'0.8rem', color:'#aaa'}}>{inv.date} • {inv.total_sum.toFixed(2)} € • Eräpäivä: {calculateDueDate(inv)}</div>
                             {inv.cancel_reason && <div style={{fontSize:'0.8rem', color:'#d32f2f', fontStyle:'italic', marginTop:'3px'}}>Syy: {inv.cancel_reason}</div>}
                         </div>
                         <div style={{display:'flex', gap:'5px'}}>
