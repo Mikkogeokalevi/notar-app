@@ -4,6 +4,7 @@ import { collection, query, where, getDocs, doc, getDoc, writeBatch, addDoc, ser
 import './App.css'; 
 
 const InvoiceView = ({ onBack, showNotification }) => {
+
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); 
     const [invoices, setInvoices] = useState([]);
     const [selectedForApproval, setSelectedForApproval] = useState(new Set());
@@ -132,11 +133,15 @@ const InvoiceView = ({ onBack, showNotification }) => {
             }
 
             let targetCustomerId = quickForm.customer_id;
+            let targetCustomerYtunnus = '';
+
             if (!targetCustomerId) {
                 const existing = customers.find(c => c.name.toLowerCase() === quickForm.customer_name.toLowerCase());
                 if (existing) {
                     targetCustomerId = existing.id;
+                    targetCustomerYtunnus = existing.y_tunnus || '';
                 } else {
+
                     const addrParts = quickForm.address.split(',');
                     const street = addrParts[0]?.trim() || '';
                     const cityPart = addrParts[1]?.trim() || '';
@@ -156,6 +161,11 @@ const InvoiceView = ({ onBack, showNotification }) => {
                     targetCustomerId = newCustRef.id;
                     showNotification("Uusi asiakas tallennettu rekisteriin!", "info");
                 }
+            }
+
+            if (targetCustomerId && !targetCustomerYtunnus) {
+                const custSnap = await getDoc(doc(db, "customers", targetCustomerId));
+                if (custSnap.exists()) targetCustomerYtunnus = custSnap.data().y_tunnus || '';
             }
 
             const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
@@ -195,6 +205,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 customer_id: targetCustomerId,
                 customer_name: quickForm.customer_name,
                 customer_type: quickForm.type, 
+                customer_y_tunnus: targetCustomerYtunnus,
                 billing_address: quickForm.address,
                 month: selectedMonth, 
                 date: quickForm.date,
@@ -411,7 +422,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                         }
                     });
                 });
-                return { id: bucket.key, customerId: customer.id, customerName: customer.name, invoiceTitle: bucket.title, customerType: customer.type, billingAddress: `${customer.street || ''}, ${customer.zip || ''} ${customer.city || ''}`, rows: rows, totalSum: totalSumGross / alvMultiplier, rawEntries: entries };
+                return { id: bucket.key, customerId: customer.id, customerName: customer.name, invoiceTitle: bucket.title, customerType: customer.type, customer_y_tunnus: customer.y_tunnus || '', billingAddress: `${customer.street || ''}, ${customer.zip || ''} ${customer.city || ''}`, rows: rows, totalSum: totalSumGross / alvMultiplier, rawEntries: entries };
             });
 
             const sorted = finalInvoices.sort((a,b) => a.invoiceTitle.localeCompare(b.invoiceTitle));
@@ -443,8 +454,9 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 const invoiceRef = doc(collection(db, "invoices")); 
                 const d = new Date(); d.setDate(d.getDate() + 14);
                 batch.set(invoiceRef, {
-                    invoice_number: invoiceNumberStr, title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, billing_address: invoice.billingAddress, month: selectedMonth, date: new Date().toISOString().slice(0, 10), due_date: d.toISOString().slice(0, 10), rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
+                    invoice_number: invoiceNumberStr, title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, customer_y_tunnus: invoice.customer_y_tunnus || '', billing_address: invoice.billingAddress, month: selectedMonth, date: new Date().toISOString().slice(0, 10), due_date: d.toISOString().slice(0, 10), rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
                 });
+
                 for (const entry of invoice.rawEntries) {
                     if (entry.origin === 'work_entry') batch.update(doc(db, "work_entries", entry.id), { invoiced: true, invoice_id: invoiceRef.id });
                     else if (entry.origin === 'contract_generated') batch.set(doc(collection(db, "work_entries")), { ...entry, origin: 'fixed_fee', invoiced: true, invoice_id: invoiceRef.id, created_at: timestamp });
@@ -472,8 +484,9 @@ const InvoiceView = ({ onBack, showNotification }) => {
             const batch = writeBatch(db);
             const timestamp = serverTimestamp();
             batch.set(invoiceRef, {
-                invoice_number: currentInvoiceNum.toString(), title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, billing_address: invoice.billingAddress, month: selectedMonth, date: new Date().toISOString().slice(0, 10), due_date: d.toISOString().slice(0, 10), rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
+                invoice_number: currentInvoiceNum.toString(), title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, customer_y_tunnus: invoice.customer_y_tunnus || '', billing_address: invoice.billingAddress, month: selectedMonth, date: new Date().toISOString().slice(0, 10), due_date: d.toISOString().slice(0, 10), rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
             });
+
             for (const entry of invoice.rawEntries) {
                 if (entry.origin === 'work_entry') batch.update(doc(db, "work_entries", entry.id), { invoiced: true, invoice_id: invoiceRef.id });
                 else if (entry.origin === 'contract_generated') batch.set(doc(collection(db, "work_entries")), { ...entry, origin: 'fixed_fee', invoiced: true, invoice_id: invoiceRef.id, created_at: timestamp });
@@ -487,7 +500,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
     };
 
  // --- MOBIILITULOSTUS IFRAME (PÄIVITETTY ULKOASU) ---
-    const handlePrintManual = (inv) => {
+    const handlePrintManual = async (inv) => {
         const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
         const alvMultiplier = 1 + (alvRate / 100);
         const invoiceNum = inv.invoice_number || "Luonnos";
@@ -507,6 +520,23 @@ const InvoiceView = ({ onBack, showNotification }) => {
             refNum, 
             inv.due_date || inv.date
         );
+
+        let customerYtunnus = inv.customer_y_tunnus || inv.customerYtunnus || inv.y_tunnus || '';
+        let billingAddress = inv.billing_address || inv.billingAddress || '';
+
+        try {
+            const customerId = inv.customer_id || inv.customerId;
+            if ((!customerYtunnus || !billingAddress) && customerId) {
+                const custSnap = await getDoc(doc(db, "customers", customerId));
+                if (custSnap.exists()) {
+                    const cust = custSnap.data();
+                    customerYtunnus = customerYtunnus || cust.y_tunnus || '';
+                    billingAddress = billingAddress || cust.billing_address || `${cust.street || ''}, ${cust.zip || ''} ${cust.city || ''}`.trim();
+                }
+            }
+        } catch (e) {
+            console.error('Asiakastietojen haku epäonnistui tulostuksessa:', e);
+        }
 
         const oldFrame = document.getElementById('printFrame');
         if (oldFrame) oldFrame.remove();
@@ -626,7 +656,8 @@ const InvoiceView = ({ onBack, showNotification }) => {
                             <td>
                                 <div class="recipient-box">
                                     <b>${inv.customerName || inv.customer_name}</b><br>
-                                    ${(inv.billingAddress || inv.billing_address || '').replace(',', '<br>')}
+                                    ${customerYtunnus ? `Y-tunnus: ${customerYtunnus}<br>` : ''}
+                                    ${billingAddress ? billingAddress.replace(/,\s*/g, '<br>') : ''}
                                 </div>
 
                                 <table class="invoice-data">

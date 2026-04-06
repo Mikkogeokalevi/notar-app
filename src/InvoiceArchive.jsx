@@ -193,7 +193,7 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
     };
 
     // --- TULOSTUS (STANDARD TABLE HEADER/FOOTER REPEAT) ---
-    const handlePrint = (inv) => {
+    const handlePrint = async (inv) => {
         const invoiceNum = inv.invoice_number || "Luonnos";
         const refNum = generateReferenceNumber(invoiceNum);
         const dueDate = inv.due_date ? new Date(inv.due_date).toLocaleDateString('fi-FI') : calculateDueDate(inv);
@@ -202,6 +202,22 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
         const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
         const alvDivisor = 1 + (alvRate / 100);
         const virtualBarcode = generateVirtualBarcode(companyInfo.iban, inv.total_sum, refNum, inv.date);
+
+        let customerYtunnus = inv.customer_y_tunnus || inv.customerYtunnus || inv.y_tunnus || '';
+        let billingAddress = inv.billing_address || '';
+
+        try {
+            if ((!customerYtunnus || !billingAddress) && inv.customer_id) {
+                const custSnap = await getDoc(doc(db, "customers", inv.customer_id));
+                if (custSnap.exists()) {
+                    const cust = custSnap.data();
+                    customerYtunnus = customerYtunnus || cust.y_tunnus || '';
+                    billingAddress = billingAddress || cust.billing_address || `${cust.street || ''}, ${cust.zip || ''} ${cust.city || ''}`.trim();
+                }
+            }
+        } catch (e) {
+            console.error('Asiakastietojen haku epäonnistui tulostuksessa:', e);
+        }
 
         const totalGross = inv.total_sum;
         const totalNet = totalGross / alvDivisor;
@@ -319,7 +335,8 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                             <td>
                                 <div class="recipient-box">
                                     <b>${inv.customer_name}</b><br>
-                                    ${inv.billing_address ? inv.billing_address.replace(',', '<br>') : ''}
+                                    ${customerYtunnus ? `Y-tunnus: ${customerYtunnus}<br>` : ''}
+                                    ${billingAddress ? billingAddress.replace(/,\s*/g, '<br>') : ''}
                                 </div>
                                 ${creditReasonBlock}
                                 ${cancelReasonBlock}
