@@ -106,6 +106,17 @@ const AsiakasKortti = ({ asiakas, onBack, onDeleted, availableTasks }) => {
              <input value={form.y_tunnus || ''} onChange={e => setForm({...form, y_tunnus: e.target.value})} /></div>
           <div className="form-group"><label>Laskutusosoite:</label>
              <input value={form.billing_address || ''} onChange={e => setForm({...form, billing_address: e.target.value})} /></div>
+
+          <div className="form-group">
+            <label>
+              <input
+                type="checkbox"
+                checked={!!form.bill_fixed_monthly_next_month}
+                onChange={(e) => setForm({ ...form, bill_fixed_monthly_next_month: e.target.checked })}
+              />{' '}
+              Laskuta kk-sopimukset seuraavalta kuulta (etukäteen)
+            </label>
+          </div>
         </div>
 
         {/* 2. YLEINEN HINNASTO (ASIAKASTASO) */}

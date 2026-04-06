@@ -304,14 +304,29 @@ const InvoiceView = ({ onBack, showNotification }) => {
             const endStr = `${selectedMonth}-${lastDay}`;
             const monthText = `${month}/${year}`;
 
+            const addMonthsToYYYYMM = (yyyyMm, deltaMonths) => {
+                const [y, m] = yyyyMm.split('-').map(n => parseInt(n, 10));
+                const d = new Date(y, (m - 1) + deltaMonths, 1);
+                const yy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                return `${yy}-${mm}`;
+            };
+            const endOfMonthDateStr = (yyyyMm) => {
+                const [y, m] = yyyyMm.split('-').map(n => parseInt(n, 10));
+                const ld = new Date(y, m, 0).getDate();
+                return `${yyyyMm}-${ld}`;
+            };
+
             const qWork = query(collection(db, "work_entries"), where("invoiced", "==", false), where("date", ">=", startStr), where("date", "<=", endStr));
             const workSnap = await getDocs(qWork);
             const workEntries = workSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), origin: 'work_entry' }));
 
-            const qFixed = query(collection(db, "work_entries"), where("origin", "==", "fixed_fee"), where("date", ">=", startStr), where("date", "<=", endStr));
+            const nextMonth = addMonthsToYYYYMM(selectedMonth, 1);
+            const endStrNext = endOfMonthDateStr(nextMonth);
+            const qFixed = query(collection(db, "work_entries"), where("origin", "==", "fixed_fee"), where("date", ">=", startStr), where("date", "<=", endStrNext));
             const fixedSnap = await getDocs(qFixed);
             const existingFixedFees = fixedSnap.docs.map(doc => doc.data());
-            const isAlreadyBilled = (customerId, propertyId, taskId) => existingFixedFees.some(f => f.customer_id === customerId && f.task_id === taskId && (propertyId ? f.property_id === propertyId : true));
+            const isAlreadyBilled = (customerId, propertyId, taskId, expectedDate) => existingFixedFees.some(f => f.customer_id === customerId && f.task_id === taskId && (propertyId ? f.property_id === propertyId : true) && (expectedDate ? f.date === expectedDate : true));
 
             const custSnap = await getDocs(collection(db, "customers"));
             const propSnap = await getDocs(collection(db, "properties"));
@@ -326,7 +341,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 const p = { id: d.id, ...d.data() };
                 monthlyTasks.forEach(task => {
                     const contract = p.contracts?.[task.id];
-                    if (contract?.active && !isAlreadyBilled(p.customer_id, p.id, task.id)) {
+                    if (contract?.active && !isAlreadyBilled(p.customer_id, p.id, task.id, endStr)) {
                         const parent = customersMap[p.customer_id];
                         if (parent) generatedFixedEntries.push({ id: `gen_${p.id}_${task.id}`, customer_id: parent.id, customer_name: parent.name, property_id: p.id, property_address: p.address, task_id: task.id, task_name: task.label, task_type: 'fixed_monthly', price_work: contract.price, date: endStr, description: `${task.label} (${monthText})`, origin: 'contract_generated', group: p.group || parent.group_names?.[0] || 'Sopimukset', cost_center: p.cost_center });
                     }
@@ -334,10 +349,17 @@ const InvoiceView = ({ onBack, showNotification }) => {
             });
             Object.values(customersMap).forEach(c => {
                 if (c.type !== 'isannointi') {
+                    const contractMonth = c.bill_fixed_monthly_next_month ? nextMonth : selectedMonth;
+                    const contractEndStr = c.bill_fixed_monthly_next_month ? endStrNext : endStr;
+                    const contractMonthText = c.bill_fixed_monthly_next_month ? (() => {
+                        const [yy, mm] = contractMonth.split('-');
+                        return `${mm}/${yy}`;
+                    })() : monthText;
+
                     monthlyTasks.forEach(task => {
                         const contract = c.contracts?.[task.id];
-                        if (contract?.active && !isAlreadyBilled(c.id, null, task.id)) {
-                            generatedFixedEntries.push({ id: `gen_${c.id}_${task.id}`, customer_id: c.id, customer_name: c.name, property_address: c.street || c.billing_address || c.name || '', task_id: task.id, task_name: task.label, task_type: 'fixed_monthly', price_work: contract.price, date: endStr, description: `${task.label} (${monthText})`, origin: 'contract_generated', group: c.type === 'b2c' ? 'Yksityiset' : 'Yritykset' });
+                        if (contract?.active && !isAlreadyBilled(c.id, null, task.id, contractEndStr)) {
+                            generatedFixedEntries.push({ id: `gen_${c.id}_${task.id}`, customer_id: c.id, customer_name: c.name, property_address: c.street || c.billing_address || c.name || '', task_id: task.id, task_name: task.label, task_type: 'fixed_monthly', price_work: contract.price, date: contractEndStr, description: `${task.label} (${contractMonthText})`, origin: 'contract_generated', group: c.type === 'b2c' ? 'Yksityiset' : 'Yritykset' });
                         }
                     });
                 }
