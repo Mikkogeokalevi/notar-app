@@ -7,6 +7,16 @@ const InstructionsView = ({ onBack }) => {
     // VERSIOHISTORIA - Uusin aina ensin
     const versions = [
         {
+            version: "2.0",
+            date: "06.04.2026",
+            changes: [
+                "Laskutus: Kiinteä eräpäivä toimii nyt oikein asiakkaan maksuehdon mukaan (esim. aina 15. pv).",
+                "Sopimukset: Kiinteitä kertakorvauksia (fixed) ei lisätä laskulle automaattisesti – ne tulevat vain jos ne on erikseen kirjattu työksi.",
+                "KG-työt: Kilomäärä käsitellään määränä (kg) ja hinta haetaan sopimuksen €/kg mukaan.",
+                "Poikkeus: Tietyille asiakkaille kk-sopimus voidaan laskuttaa seuraavalta kuulta (etukäteen) asiakaskortin valinnalla."
+            ]
+        },
+        {
             version: "1.9",
             date: "01.02.2026",
             changes: [
@@ -184,6 +194,8 @@ const InstructionsView = ({ onBack }) => {
                     </li>
                     <li><b>Yhteenveto:</b> Näet heti yläreunassa valittujen laskujen kokonaissumman (ALV 0%) ennen hyväksyntää.</li>
                     <li><b>KK-sopimukset:</b> Sovellus huomioi automaattisesti kaikki kiinteähintaiset kuukausisopimukset, vaikka työkirjausta ei olisi tehty.</li>
+                    <li><b>Kertakorvaus (fixed):</b> Kertakorvauksia ei lisätä laskulle automaattisesti – ne tulevat laskulle vain, jos työ on erikseen kirjattu.</li>
+                    <li><b>Poikkeus (etukäteen laskutus):</b> Jos jollekin asiakkaalle kk-sopimus pitää tulla seuraavalta kuulta, se voidaan laittaa päälle asiakaskortilta kohdasta <b>"Laskuta kk-sopimukset seuraavalta kuulta (etukäteen)"</b>.</li>
                 </ul>
 
                 <h3>D. Pikalasku (Manuaalinen)</h3>
@@ -243,6 +255,16 @@ const InstructionsView = ({ onBack }) => {
 
                 <h2 style={{color:'#4caf50'}}>5. TIETOTURVA</h2>
                 <p>Sovellus vaatii kirjautumisen sähköpostilla ja salasanalla. Istunto säilyy laitteella, joten sisäänkirjautumista ei tarvitse tehdä jatkuvasti uudelleen, ellei käyttäjä kirjaudu ulos ohjauspaneelista.</p>
+
+                <hr style={{borderColor:'#444', margin:'20px 0'}} />
+
+                <h2 style={{color:'#4caf50'}}>6. APUA & USEIN KYSYTYT</h2>
+                <ul>
+                    <li><b>Eräpäivä ei ole oikein:</b> Tarkista asiakaskortilta <b>Maksuehto / Eräpäivä</b>. Jos käytössä on <b>Kiinteä eräpäivä</b>, valitse päivä (esim. 15). Tämän jälkeen hyväksytyille laskuille eräpäivä tulee valinnan mukaan.</li>
+                    <li><b>KG-työ näyttää väärältä laskulla:</b> KG-tehtävissä syötetään <b>määrä kiloina</b>, ja hinta tulee sopimuksen <b>€/kg</b> mukaan. Tarkista asiakkaan (tai kohteen) hinnastosta, että kg-hinta on asetettu ja sopimus on aktiivinen.</li>
+                    <li><b>"Kiinteistöhuolto" ei tule laskulle:</b> Jos tehtävä on <b>KK-sopimus</b>, se tulee automaattisesti. Jos tehtävä on <b>kertakorvaus (fixed)</b>, se pitää kirjata erikseen työksi, jotta se tulee laskulle.</li>
+                    <li><b>Tarvitsen apua nopeasti:</b> Ota yhteys sovelluksen ylläpitäjään (yrityksen sisäinen tuki). Kuvaa viestissä asiakkaan nimi, laskutuskuukausi ja mitä rivejä puuttuu tai on väärin.</li>
+                </ul>
             </div>
         </div>
     );

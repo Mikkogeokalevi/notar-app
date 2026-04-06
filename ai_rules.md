@@ -78,6 +78,7 @@ Säännöt on määritelty Firebase-konsolissa ja ne:
    - Sopimukset: `contracts` (objekti, jossa avaimena task.id)
    - Ryhmät: `group_names` (array)
    - Maksuehdot: `payment_term_type`, `fixed_due_day`
+   - KK-sopimusten laskutuspoikkeus: `bill_fixed_monthly_next_month` (boolean)
 
 3. **properties**
    - Kohdetiedot: `customer_id`, `address`, `group`, `cost_center`
@@ -107,10 +108,18 @@ Säännöt on määritelty Firebase-konsolissa ja ne:
 - Lomake: Valitse asiakas → (valinnainen) kohde → syötä hinta/selite
 - Hinnat syötetään aina **ALV 0%** (verollinen hinta lasketaan automaattisesti)
 
+**KG-työt (tärkeä):**
+- `task_type === 'kg'` kirjauksissa käyttäjän syöttämä luku on **määrä kiloina**
+- Tallennus:
+  - `value` = kilomäärä
+  - `price_work` = **yksikköhinta €/kg** (haetaan sopimuksesta: kohde ensin, muuten asiakas)
+- Laskulla kg-rivit lasketaan muodossa: `value (kg) * price_work (€/kg)`
+
 ### 2. Laskutusautomaatio (InvoiceView.jsx)
 
 - Generoi laskuluonnokset kuukausittain laskuttamattomista `work_entries`-merkinnöistä
 - Automaattisesti luo kiinteät kuukausimaksut (`fixed_monthly`) sopimuksista
+- **HUOM:** `fixed`-tyyppisiä sopimuksia **ei autogeneroida** laskulle. `fixed` tulee laskulle vain, jos siitä on tehty erillinen `work_entry`.
 - **Laskujen jako:**
   - **Isännöinti:** Erilliset laskut ryhmittäin – Erillistyöt, Liitetyöt, Sopimukset (KK), Kiinteistöhuolto (omina laskuinaan per ryhmä)
   - **Yritys / Yksityinen:** Kaikki samassa laskussa (yksi lasku per asiakas)
@@ -119,6 +128,10 @@ Säännöt on määritelty Firebase-konsolissa ja ne:
 - Laskunumero kasvaa automaattisesti (`invoice_start_number`)
 - **Hyväksyntä:** Valintaruudut per lasku, "Valitse kaikki", "Hyväksy valitut (N)" ja per-lasku "Hyväksy"-nappi. Oletuksena kaikki valittuna; hyväksytyt poistuvat listalta
 - **Nollaa KK-laskutustieto:** Poistaa valitun kuukauden KK-maksujen (Sopimukset) "laskutettu"-merkinnät (`work_entries` joissa `origin === 'fixed_fee'`). KK-maksut tulevat uudelleen "Hae laskutettavat"-listalle
+
+**KK-sopimusten laskutuspoikkeus (asiakaskohtainen):**
+- Oletus: kun laskutuksessa valitaan kuukausi (esim. 03/2026), sekä työt että `fixed_monthly`-sopimukset kohdistuvat samalle kuulle.
+- Poikkeus tietyille asiakkaille: jos asiakkaalla `bill_fixed_monthly_next_month === true`, `fixed_monthly`-sopimusrivi muodostetaan **seuraavalle kuulle** (esim. 04/2026), vaikka työt haetaan edelleen valitulta kuulta.
 
 ### 3. Tulostus (InvoiceView.jsx + InvoiceArchive.jsx)
 
@@ -132,10 +145,21 @@ Säännöt on määritelty Firebase-konsolissa ja ne:
 - **Mitätöity lasku:** Otsikko "LASKU – MITÄTÖITY", alla "Mitätöinnin syy: …" (cancel_reason)
 - **Viitenumero:** Suomalainen viitenumero 7-3-1, väh. 4 numeroa. Pohja = 1000 + laskunumero (esim. lasku 1 → viite 1001X), jotta viite EI ala nollalla – pankkiohjelmat typistävät alkuperän ja tarjoavat kolme numeroa
 
+**Asiakkaan Y-tunnus ja laskutusosoite tulosteessa:**
+- Laskudokumentissa pyritään tallentamaan `customer_y_tunnus` ja `billing_address`
+- Tulostuksessa, jos nämä puuttuvat laskulta, ne haetaan tarvittaessa `customers/{customer_id}`-dokumentista (parantaa luotettavuutta vanhoille laskuille)
+
 ### 4. Muut käytännöt
 
 - **Pikalasku-modali (Luo uusi lasku):** Kannettavalla vieritys – overlay `alignItems: flex-start`, `overflowY: auto`, `padding`, jotta "Tallenna & Luo Lasku" ja "Lisää rivi" tulevat näkyviin
 - **Haamujen siivous:** Toimisto → Haamujen siivous. Listaa kaikki asiakkaat (poista testiasiakkaat) ja orvot kohteet ("Tuntematon") – nämä voi poistaa, jolloin ne katoavat Auraus/Lumen poisvienti -listoilta
+
+### 5. Eräpäivä (due_date)
+
+- Asiakaskortilla määritetään maksuehto:
+  - `payment_term_type`: `7pv` / `14pv` / `30pv` / `fixed`
+  - `fixed_due_day`: jos `payment_term_type === 'fixed'`, kiinteä eräpäivän päivä (1–31)
+- Laskujen hyväksynnässä `due_date` lasketaan asiakaskohtaisesti näiden kenttien perusteella (ei kiinteästi +14pv)
 
 ### 5. ALV-käsittely
 
