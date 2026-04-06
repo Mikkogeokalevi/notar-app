@@ -321,7 +321,6 @@ const InvoiceView = ({ onBack, showNotification }) => {
             propSnap.forEach(d => { const data = d.data(); propertyLookup[d.id] = { address: data.address, cost_center: data.cost_center, group: data.group, contracts: data.contracts, customer_id: data.customer_id, id: d.id }; });
 
             const monthlyTasks = tasksDef.filter(t => t.type === 'fixed_monthly');
-            const fixedTasks = tasksDef.filter(t => t.type === 'fixed');
             const generatedFixedEntries = [];
             propSnap.docs.forEach(d => {
                 const p = { id: d.id, ...d.data() };
@@ -332,26 +331,13 @@ const InvoiceView = ({ onBack, showNotification }) => {
                         if (parent) generatedFixedEntries.push({ id: `gen_${p.id}_${task.id}`, customer_id: parent.id, customer_name: parent.name, property_id: p.id, property_address: p.address, task_id: task.id, task_name: task.label, task_type: 'fixed_monthly', price_work: contract.price, date: endStr, description: `${task.label} (${monthText})`, origin: 'contract_generated', group: p.group || parent.group_names?.[0] || 'Sopimukset', cost_center: p.cost_center });
                     }
                 });
-                fixedTasks.forEach(task => {
-                    const contract = p.contracts?.[task.id];
-                    if (contract?.active && !isAlreadyBilled(p.customer_id, p.id, task.id)) {
-                        const parent = customersMap[p.customer_id];
-                        if (parent && parent.type !== 'isannointi') generatedFixedEntries.push({ id: `gen_${p.id}_${task.id}`, customer_id: parent.id, customer_name: parent.name, property_id: p.id, property_address: p.address, task_id: task.id, task_name: task.label, task_type: 'fixed', price_work: contract.price, date: endStr, description: `${task.label} (${monthText})`, origin: 'contract_generated', group: p.group || parent.group_names?.[0] || 'Sopimukset', cost_center: p.cost_center });
-                    }
-                });
             });
             Object.values(customersMap).forEach(c => {
                 if (c.type !== 'isannointi') {
                     monthlyTasks.forEach(task => {
                         const contract = c.contracts?.[task.id];
                         if (contract?.active && !isAlreadyBilled(c.id, null, task.id)) {
-                            generatedFixedEntries.push({ id: `gen_${c.id}_${task.id}`, customer_id: c.id, customer_name: c.name, task_id: task.id, task_name: task.label, task_type: 'fixed_monthly', price_work: contract.price, date: endStr, description: `${task.label} (${monthText})`, origin: 'contract_generated', group: c.type === 'b2c' ? 'Yksityiset' : 'Yritykset' });
-                        }
-                    });
-                    fixedTasks.forEach(task => {
-                        const contract = c.contracts?.[task.id];
-                        if (contract?.active && !isAlreadyBilled(c.id, null, task.id)) {
-                            generatedFixedEntries.push({ id: `gen_${c.id}_${task.id}`, customer_id: c.id, customer_name: c.name, task_id: task.id, task_name: task.label, task_type: 'fixed', price_work: contract.price, date: endStr, description: `${task.label} (${monthText})`, origin: 'contract_generated', group: c.type === 'b2c' ? 'Yksityiset' : 'Yritykset' });
+                            generatedFixedEntries.push({ id: `gen_${c.id}_${task.id}`, customer_id: c.id, customer_name: c.name, property_address: c.street || c.billing_address || c.name || '', task_id: task.id, task_name: task.label, task_type: 'fixed_monthly', price_work: contract.price, date: endStr, description: `${task.label} (${monthText})`, origin: 'contract_generated', group: c.type === 'b2c' ? 'Yksityiset' : 'Yritykset' });
                         }
                     });
                 }
