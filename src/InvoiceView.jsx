@@ -72,6 +72,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
         date: formatDateLocal(new Date()),
         due_date: calculateDueDate(formatDateLocal(new Date()), 14),
         invoice_header_text: '',
+        invoice_header_print_enabled: true,
         rows: [{ 
             date: formatDateLocal(new Date()), 
             text: '', 
@@ -109,7 +110,8 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 customer_name: cust.name,
                 address: `${cust.street || ''}, ${cust.zip || ''} ${cust.city || ''}`,
                 type: cust.type || 'b2c',
-                invoice_header_text: cust.invoice_header_text || ''
+                invoice_header_text: cust.invoice_header_text || '',
+                invoice_header_print_enabled: cust.invoice_header_print_enabled !== false
             }));
         } else {
             setQuickForm(prev => ({ ...prev, customer_id: '' }));
@@ -249,6 +251,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 customer_y_tunnus: targetCustomerYtunnus,
                 billing_address: quickForm.address,
                 invoice_header_text: quickForm.invoice_header_text || '',
+                invoice_header_print_enabled: quickForm.invoice_header_print_enabled !== false,
                 month: selectedMonth, 
                 date: quickForm.date,
                 due_date: quickForm.due_date,
@@ -268,6 +271,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 date: formatDateLocal(new Date()), 
                 due_date: calculateDueDate(formatDateLocal(new Date()), 14),
                 invoice_header_text: '',
+                invoice_header_print_enabled: true,
                 rows: [{ date: formatDateLocal(new Date()), text: '', price_work: '', price_material: '' }] 
             });
 
@@ -489,7 +493,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                     });
                 });
 
-                return { id: bucket.key, customer: customer, customerId: customer.id, customerName: customer.name, invoiceTitle: bucket.title, customerType: customer.type, customer_y_tunnus: customer.y_tunnus || '', billingAddress: `${customer.street || ''}, ${customer.zip || ''} ${customer.city || ''}`, invoice_header_text: customer.invoice_header_text || '', rows: rows, totalSum: totalSumGross / alvMultiplier, rawEntries: entries };
+                return { id: bucket.key, customer: customer, customerId: customer.id, customerName: customer.name, invoiceTitle: bucket.title, customerType: customer.type, customer_y_tunnus: customer.y_tunnus || '', billingAddress: `${customer.street || ''}, ${customer.zip || ''} ${customer.city || ''}`, invoice_header_text: customer.invoice_header_text || '', invoice_header_print_enabled: customer.invoice_header_print_enabled !== false, rows: rows, totalSum: totalSumGross / alvMultiplier, rawEntries: entries };
             });
 
             const sorted = finalInvoices.sort((a,b) => a.invoiceTitle.localeCompare(b.invoiceTitle));
@@ -523,7 +527,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 const invoiceDateStr = formatDateLocal(new Date());
                 const dueDateStr = calculateDueDateByCustomer(invoiceDateStr, invoice.customer || {});
                 batch.set(invoiceRef, {
-                    invoice_number: invoiceNumberStr, title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, customer_y_tunnus: invoice.customer_y_tunnus || '', billing_address: invoice.billingAddress, invoice_header_text: invoice.invoice_header_text || invoice.customer?.invoice_header_text || '', month: selectedMonth, date: invoiceDateStr, due_date: dueDateStr, rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
+                    invoice_number: invoiceNumberStr, title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, customer_y_tunnus: invoice.customer_y_tunnus || '', billing_address: invoice.billingAddress, invoice_header_text: invoice.invoice_header_text || invoice.customer?.invoice_header_text || '', invoice_header_print_enabled: invoice.invoice_header_print_enabled !== false, month: selectedMonth, date: invoiceDateStr, due_date: dueDateStr, rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
                 });
 
                 for (const entry of invoice.rawEntries) {
@@ -554,7 +558,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
             const batch = writeBatch(db);
             const timestamp = serverTimestamp();
             batch.set(invoiceRef, {
-                invoice_number: currentInvoiceNum.toString(), title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, customer_y_tunnus: invoice.customer_y_tunnus || '', billing_address: invoice.billingAddress, invoice_header_text: invoice.invoice_header_text || invoice.customer?.invoice_header_text || '', month: selectedMonth, date: invoiceDateStr, due_date: dueDateStr, rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
+                invoice_number: currentInvoiceNum.toString(), title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, customer_y_tunnus: invoice.customer_y_tunnus || '', billing_address: invoice.billingAddress, invoice_header_text: invoice.invoice_header_text || invoice.customer?.invoice_header_text || '', invoice_header_print_enabled: invoice.invoice_header_print_enabled !== false, month: selectedMonth, date: invoiceDateStr, due_date: dueDateStr, rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
             });
 
             for (const entry of invoice.rawEntries) {
@@ -595,6 +599,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
         let customerYtunnus = inv.customer_y_tunnus || inv.customerYtunnus || inv.y_tunnus || '';
         let billingAddress = inv.billing_address || inv.billingAddress || '';
         let invoiceHeaderText = inv.invoice_header_text || '';
+        let invoiceHeaderEnabled = inv.invoice_header_print_enabled !== false;
 
         try {
             const customerId = inv.customer_id || inv.customerId;
@@ -605,6 +610,9 @@ const InvoiceView = ({ onBack, showNotification }) => {
                     customerYtunnus = customerYtunnus || cust.y_tunnus || '';
                     billingAddress = billingAddress || cust.billing_address || `${cust.street || ''}, ${cust.zip || ''} ${cust.city || ''}`.trim();
                     invoiceHeaderText = invoiceHeaderText || cust.invoice_header_text || '';
+                    if (inv.invoice_header_print_enabled === undefined || inv.invoice_header_print_enabled === null) {
+                        invoiceHeaderEnabled = cust.invoice_header_print_enabled !== false;
+                    }
                 }
             }
         } catch (e) {
@@ -634,7 +642,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
             return `<tr><td>${r.text} ${detailsHtml ? `<span class="small-text">${detailsHtml}</span>` : ''}</td><td style="text-align:right; vertical-align:top;">${displayPrice.toFixed(2)} €</td></tr>`;
         }).join('');
 
-        const invoiceHeaderHtml = invoiceHeaderText
+        const invoiceHeaderHtml = (invoiceHeaderEnabled && invoiceHeaderText)
             ? `<div style="margin-bottom: 15px; padding: 10px; border: 1px solid #999; background: #f5f5f5; font-size: 12px; white-space: pre-line;">${invoiceHeaderText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`
             : '';
 
@@ -832,7 +840,18 @@ const InvoiceView = ({ onBack, showNotification }) => {
                                 <label style={{cursor:'pointer', display:'flex', alignItems:'center'}} title="Valitse hyväksyttäväksi">
                                     <input type="checkbox" className="big-checkbox" checked={selectedForApproval.has(inv.id)} onChange={() => setSelectedForApproval(prev => { const s = new Set(prev); if (s.has(inv.id)) s.delete(inv.id); else s.add(inv.id); return s; })} />
                                 </label>
-                                <div><h3 style={{margin:0}}>{inv.invoiceTitle}</h3><span style={{fontSize:'0.8em', color:'#aaa'}}>{inv.customerType === 'b2c' ? 'Yksityinen (Sis. ALV)' : 'Yritys/Isännöinti (+ ALV)'}</span></div>
+                                <div>
+                                    <h3 style={{margin:0}}>{inv.invoiceTitle}</h3>
+                                    <span style={{fontSize:'0.8em', color:'#aaa'}}>{inv.customerType === 'b2c' ? 'Yksityinen (Sis. ALV)' : 'Yritys/Isännöinti (+ ALV)'}</span>
+                                    {(() => {
+                                        const extra = (inv.invoice_header_text || inv.customer?.invoice_header_text || '').trim();
+                                        if (!extra) return null;
+                                        const firstLine = extra.split('\n')[0].trim();
+                                        const short = firstLine.length > 15 ? `${firstLine.slice(0, 15)}…` : firstLine;
+                                        if (!short) return null;
+                                        return <div style={{fontSize:'0.8em', color:'#90caf9', marginTop:'2px'}}>Lisätieto: {short}</div>;
+                                    })()}
+                                </div>
                             </div>
                             <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
                                 <div style={{textAlign:'right'}}>
@@ -875,7 +894,8 @@ const InvoiceView = ({ onBack, showNotification }) => {
                                 {customers.map(c => {
                                     const extra = (c.invoice_header_text || '').trim();
                                     const firstLine = extra ? extra.split('\n')[0].trim() : '';
-                                    const label = firstLine ? `${c.name} — ${firstLine}` : c.name;
+                                    const short = firstLine ? (firstLine.length > 15 ? `${firstLine.slice(0, 15)}…` : firstLine) : '';
+                                    const label = short ? `${c.name} — ${short}` : c.name;
                                     return <option key={c.id} value={c.id}>{label}</option>;
                                 })}
                             </select>
@@ -908,6 +928,18 @@ const InvoiceView = ({ onBack, showNotification }) => {
                         <div className="form-group">
                             <label>Laskun lisätieto / viite (tulostuu laskulle ennen rivejä)</label>
                             <textarea value={quickForm.invoice_header_text || ''} onChange={e => setQuickForm(prev => ({...prev, invoice_header_text: e.target.value}))} rows={3} />
+                        </div>
+
+                        <div style={{marginTop: '10px', padding: '12px', background: '#1e1e1e', borderRadius: '8px', border: '1px solid #333'}}>
+                            <label style={{display:'flex', alignItems:'center', gap:'10px', color:'#ddd'}}>
+                                <input
+                                    type="checkbox"
+                                    className="big-checkbox"
+                                    checked={quickForm.invoice_header_print_enabled !== false}
+                                    onChange={(e) => setQuickForm(prev => ({ ...prev, invoice_header_print_enabled: e.target.checked }))}
+                                />
+                                Tulosta lisätieto laskulle
+                            </label>
                         </div>
 
                         <div className="form-row">

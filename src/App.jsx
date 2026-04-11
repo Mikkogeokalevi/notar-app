@@ -396,7 +396,8 @@ const AsiakasKortti = ({ asiakas, onBack, onDeleted, availableTasks, showNotific
         street: asiakas.street || '', zip: asiakas.zip || '', city: asiakas.city || '', phone: asiakas.phone || '', email: asiakas.email || '',
         payment_term_type: asiakas.payment_term_type || '14pv', fixed_due_day: asiakas.fixed_due_day || '',
         bill_fixed_monthly_next_month: !!asiakas.bill_fixed_monthly_next_month,
-        invoice_header_text: asiakas.invoice_header_text || ''
+        invoice_header_text: asiakas.invoice_header_text || '',
+        invoice_header_print_enabled: asiakas.invoice_header_print_enabled !== false
     });
     const [kohteet, setKohteet] = useState([]);
     const [uusiRyhmaNimi, setUusiRyhmaNimi] = useState('');
@@ -451,7 +452,24 @@ const AsiakasKortti = ({ asiakas, onBack, onDeleted, availableTasks, showNotific
 
           <div className="form-group">
               <label>Laskun lisätieto / viite (tulostuu laskulle ennen rivejä)</label>
-              <textarea value={form.invoice_header_text || ''} onChange={e => setForm({...form, invoice_header_text: e.target.value})} rows={3} />
+              <textarea
+                  value={form.invoice_header_text || ''}
+                  onChange={e => setForm({...form, invoice_header_text: e.target.value})}
+                  rows={5}
+                  style={{width: '100%', minHeight: '110px', resize: 'vertical'}}
+              />
+          </div>
+
+          <div style={{marginTop: '10px', padding: '12px', background: '#1e1e1e', borderRadius: '8px', border: '1px solid #333'}}>
+              <label style={{display:'flex', alignItems:'center', gap:'10px', color:'#ddd'}}>
+                  <input
+                      type="checkbox"
+                      className="big-checkbox"
+                      checked={!!form.invoice_header_print_enabled}
+                      onChange={(e) => setForm({ ...form, invoice_header_print_enabled: e.target.checked })}
+                  />
+                  Tulosta lisätieto laskulle
+              </label>
           </div>
 
           <div style={{marginTop: '20px', padding: '15px', background: '#2c2c2c', borderRadius: '8px', border: '1px solid #444'}}>
@@ -562,7 +580,17 @@ const CustomerView = ({ onBack, availableTasks, showNotification, requestConfirm
             {list.length === 0 && <p style={{color:'#666', fontStyle:'italic'}}>Ei asiakkaita.</p>}
             {list.map(a => (
                 <div key={a.id} className="card-box" onClick={() => setValittuAsiakas(a)} style={{cursor:'pointer', display:'flex', justifyContent:'space-between', padding:'15px', marginBottom:'8px', borderLeft: `4px solid ${title === 'Isännöinti' ? '#2196f3' : title === 'Yritykset' ? '#ff9800' : '#4caf50'}`}}>
-                    <span style={{fontWeight:'bold', fontSize:'1.1rem'}}>{a.name}</span>
+                    <div>
+                        <div style={{fontWeight:'bold', fontSize:'1.1rem'}}>{a.name}</div>
+                        {(() => {
+                            const extra = (a.invoice_header_text || '').trim();
+                            if (!extra) return null;
+                            const firstLine = extra.split('\n')[0].trim();
+                            const short = firstLine.length > 15 ? `${firstLine.slice(0, 15)}…` : firstLine;
+                            if (!short) return null;
+                            return <div style={{fontSize:'0.85rem', color:'#90caf9', marginTop:'2px'}}>Lisätieto: {short}</div>;
+                        })()}
+                    </div>
                     <span style={{color: '#2196f3'}}>Avaa &rarr;</span>
                 </div>
             ))}

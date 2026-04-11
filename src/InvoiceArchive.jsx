@@ -186,6 +186,7 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
             await addDoc(collection(db, "invoices"), {
                 title: `HYVITYSLASKU`, invoice_number: "HYV-" + creditModal.invoice.invoice_number, customer_name: creditModal.invoice.customer_name, customer_type: creditModal.invoice.customer_type, billing_address: creditModal.invoice.billing_address, 
                 invoice_header_text: creditModal.invoice.invoice_header_text || '',
+                invoice_header_print_enabled: creditModal.invoice.invoice_header_print_enabled !== false,
                 month: creditModal.invoice.month, date: new Date().toISOString().slice(0, 10), due_date: new Date().toISOString().slice(0, 10), rows: creditRows, total_sum: newTotal, status: 'paid', type: 'credit_note', credit_reason: creditModal.reason, original_invoice_id: creditModal.invoice.id, created_at: serverTimestamp()
             });
             showNotification("Hyvityslasku luotu.", "success");
@@ -208,6 +209,7 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
         let customerYtunnus = inv.customer_y_tunnus || inv.customerYtunnus || inv.y_tunnus || '';
         let billingAddress = inv.billing_address || '';
         let invoiceHeaderText = inv.invoice_header_text || '';
+        let invoiceHeaderEnabled = inv.invoice_header_print_enabled !== false;
 
         try {
             if ((!customerYtunnus || !billingAddress || !invoiceHeaderText) && inv.customer_id) {
@@ -217,6 +219,9 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                     customerYtunnus = customerYtunnus || cust.y_tunnus || '';
                     billingAddress = billingAddress || cust.billing_address || `${cust.street || ''}, ${cust.zip || ''} ${cust.city || ''}`.trim();
                     invoiceHeaderText = invoiceHeaderText || cust.invoice_header_text || '';
+                    if (inv.invoice_header_print_enabled === undefined || inv.invoice_header_print_enabled === null) {
+                        invoiceHeaderEnabled = cust.invoice_header_print_enabled !== false;
+                    }
                 }
             }
         } catch (e) {
@@ -249,7 +254,7 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
             return `<tr><td>${r.text} ${detailsHtml ? `<span class="small-text">${detailsHtml}</span>` : ''}</td><td style="text-align:right; vertical-align:top;">${displayPrice.toFixed(2)} €</td></tr>`;
         }).join('');
 
-        const invoiceHeaderHtml = invoiceHeaderText
+        const invoiceHeaderHtml = (invoiceHeaderEnabled && invoiceHeaderText)
             ? `<div style="margin-bottom:15px; padding:10px; border:1px solid #999; font-size:12px; background:#f5f5f5; white-space: pre-line;">${esc(invoiceHeaderText)}</div>`
             : '';
 

@@ -356,7 +356,8 @@ const WorkView = ({ availableTasks, onOpenLog, showNotification }) => {
                             {asiakkaat.map(a => {
                                 const extra = (a.invoice_header_text || '').trim();
                                 const firstLine = extra ? extra.split('\n')[0].trim() : '';
-                                const label = firstLine ? `${a.name} — ${firstLine}` : a.name;
+                                const short = firstLine ? (firstLine.length > 15 ? `${firstLine.slice(0, 15)}…` : firstLine) : '';
+                                const label = short ? `${a.name} — ${short}` : a.name;
                                 return <option key={a.id} value={a.id}>{label}</option>;
                             })}
                         </select>
