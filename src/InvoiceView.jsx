@@ -71,6 +71,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
         payment_term: 14,
         date: formatDateLocal(new Date()),
         due_date: calculateDueDate(formatDateLocal(new Date()), 14),
+        invoice_header_text: '',
         rows: [{ 
             date: formatDateLocal(new Date()), 
             text: '', 
@@ -107,7 +108,8 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 customer_id: cust.id,
                 customer_name: cust.name,
                 address: `${cust.street || ''}, ${cust.zip || ''} ${cust.city || ''}`,
-                type: cust.type || 'b2c' 
+                type: cust.type || 'b2c',
+                invoice_header_text: cust.invoice_header_text || ''
             }));
         } else {
             setQuickForm(prev => ({ ...prev, customer_id: '' }));
@@ -246,6 +248,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 customer_type: quickForm.type, 
                 customer_y_tunnus: targetCustomerYtunnus,
                 billing_address: quickForm.address,
+                invoice_header_text: quickForm.invoice_header_text || '',
                 month: selectedMonth, 
                 date: quickForm.date,
                 due_date: quickForm.due_date,
@@ -264,6 +267,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 customer_id: '', customer_name: '', address: '', type: 'b2c', payment_term: 14,
                 date: formatDateLocal(new Date()), 
                 due_date: calculateDueDate(formatDateLocal(new Date()), 14),
+                invoice_header_text: '',
                 rows: [{ date: formatDateLocal(new Date()), text: '', price_work: '', price_material: '' }] 
             });
 
@@ -430,6 +434,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 const { customer, entries } = bucket;
                 const rows = [];
                 let totalSumGross = 0;
+
                 entries.sort((a, b) => (a.property_address || 'ZZZ').localeCompare(b.property_address || 'ZZZ') || new Date(a.date) - new Date(b.date));
 
                 const propertyGroups = {};
@@ -484,7 +489,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                     });
                 });
 
-                return { id: bucket.key, customer: customer, customerId: customer.id, customerName: customer.name, invoiceTitle: bucket.title, customerType: customer.type, customer_y_tunnus: customer.y_tunnus || '', billingAddress: `${customer.street || ''}, ${customer.zip || ''} ${customer.city || ''}`, rows: rows, totalSum: totalSumGross / alvMultiplier, rawEntries: entries };
+                return { id: bucket.key, customer: customer, customerId: customer.id, customerName: customer.name, invoiceTitle: bucket.title, customerType: customer.type, customer_y_tunnus: customer.y_tunnus || '', billingAddress: `${customer.street || ''}, ${customer.zip || ''} ${customer.city || ''}`, invoice_header_text: customer.invoice_header_text || '', rows: rows, totalSum: totalSumGross / alvMultiplier, rawEntries: entries };
             });
 
             const sorted = finalInvoices.sort((a,b) => a.invoiceTitle.localeCompare(b.invoiceTitle));
@@ -518,7 +523,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 const invoiceDateStr = formatDateLocal(new Date());
                 const dueDateStr = calculateDueDateByCustomer(invoiceDateStr, invoice.customer || {});
                 batch.set(invoiceRef, {
-                    invoice_number: invoiceNumberStr, title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, customer_y_tunnus: invoice.customer_y_tunnus || '', billing_address: invoice.billingAddress, month: selectedMonth, date: invoiceDateStr, due_date: dueDateStr, rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
+                    invoice_number: invoiceNumberStr, title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, customer_y_tunnus: invoice.customer_y_tunnus || '', billing_address: invoice.billingAddress, invoice_header_text: invoice.invoice_header_text || invoice.customer?.invoice_header_text || '', month: selectedMonth, date: invoiceDateStr, due_date: dueDateStr, rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
                 });
 
                 for (const entry of invoice.rawEntries) {
@@ -549,7 +554,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
             const batch = writeBatch(db);
             const timestamp = serverTimestamp();
             batch.set(invoiceRef, {
-                invoice_number: currentInvoiceNum.toString(), title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, customer_y_tunnus: invoice.customer_y_tunnus || '', billing_address: invoice.billingAddress, month: selectedMonth, date: invoiceDateStr, due_date: dueDateStr, rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
+                invoice_number: currentInvoiceNum.toString(), title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, customer_y_tunnus: invoice.customer_y_tunnus || '', billing_address: invoice.billingAddress, invoice_header_text: invoice.invoice_header_text || invoice.customer?.invoice_header_text || '', month: selectedMonth, date: invoiceDateStr, due_date: dueDateStr, rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
             });
 
             for (const entry of invoice.rawEntries) {
@@ -589,6 +594,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
 
         let customerYtunnus = inv.customer_y_tunnus || inv.customerYtunnus || inv.y_tunnus || '';
         let billingAddress = inv.billing_address || inv.billingAddress || '';
+        let invoiceHeaderText = inv.invoice_header_text || '';
 
         try {
             const customerId = inv.customer_id || inv.customerId;
@@ -598,6 +604,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
                     const cust = custSnap.data();
                     customerYtunnus = customerYtunnus || cust.y_tunnus || '';
                     billingAddress = billingAddress || cust.billing_address || `${cust.street || ''}, ${cust.zip || ''} ${cust.city || ''}`.trim();
+                    invoiceHeaderText = invoiceHeaderText || cust.invoice_header_text || '';
                 }
             }
         } catch (e) {
@@ -626,6 +633,10 @@ const InvoiceView = ({ onBack, showNotification }) => {
             const detailsHtml = r.details ? (r.details || '').replace(/\n/g, '<br />') : '';
             return `<tr><td>${r.text} ${detailsHtml ? `<span class="small-text">${detailsHtml}</span>` : ''}</td><td style="text-align:right; vertical-align:top;">${displayPrice.toFixed(2)} €</td></tr>`;
         }).join('');
+
+        const invoiceHeaderHtml = invoiceHeaderText
+            ? `<div style="margin-bottom: 15px; padding: 10px; border: 1px solid #999; background: #f5f5f5; font-size: 12px; white-space: pre-line;">${invoiceHeaderText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`
+            : '';
 
         doc.open();
         doc.write(`
@@ -725,6 +736,8 @@ const InvoiceView = ({ onBack, showNotification }) => {
                                     ${customerYtunnus ? `Y-tunnus: ${customerYtunnus}<br>` : ''}
                                     ${billingAddress ? billingAddress.replace(/,\s*/g, '<br>') : ''}
                                 </div>
+
+                                ${invoiceHeaderHtml}
 
                                 <table class="invoice-data">
                                     <thead>
@@ -859,7 +872,12 @@ const InvoiceView = ({ onBack, showNotification }) => {
                             <label>Valitse asiakas (tai kirjoita uusi nimi)</label>
                             <select value={quickForm.customer_id} onChange={handleQuickCustomerChange} style={{marginBottom:'5px'}}>
                                 <option value="">-- LUO UUSI ASIAKAS --</option>
-                                {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                {customers.map(c => {
+                                    const extra = (c.invoice_header_text || '').trim();
+                                    const firstLine = extra ? extra.split('\n')[0].trim() : '';
+                                    const label = firstLine ? `${c.name} — ${firstLine}` : c.name;
+                                    return <option key={c.id} value={c.id}>{label}</option>;
+                                })}
                             </select>
                             <input 
                                 placeholder="Asiakkaan nimi..." 
@@ -885,6 +903,11 @@ const InvoiceView = ({ onBack, showNotification }) => {
                         <div className="form-group">
                             <label>Osoite</label>
                             <input value={quickForm.address} onChange={e => setQuickForm(prev => ({...prev, address: e.target.value}))} placeholder="Katuosoite, Postinro Ptp" />
+                        </div>
+
+                        <div className="form-group">
+                            <label>Laskun lisätieto / viite (tulostuu laskulle ennen rivejä)</label>
+                            <textarea value={quickForm.invoice_header_text || ''} onChange={e => setQuickForm(prev => ({...prev, invoice_header_text: e.target.value}))} rows={3} />
                         </div>
 
                         <div className="form-row">

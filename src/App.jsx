@@ -395,7 +395,8 @@ const AsiakasKortti = ({ asiakas, onBack, onDeleted, availableTasks, showNotific
         contracts: asiakas.contracts || {}, group_names: asiakas.group_names || [],
         street: asiakas.street || '', zip: asiakas.zip || '', city: asiakas.city || '', phone: asiakas.phone || '', email: asiakas.email || '',
         payment_term_type: asiakas.payment_term_type || '14pv', fixed_due_day: asiakas.fixed_due_day || '',
-        bill_fixed_monthly_next_month: !!asiakas.bill_fixed_monthly_next_month
+        bill_fixed_monthly_next_month: !!asiakas.bill_fixed_monthly_next_month,
+        invoice_header_text: asiakas.invoice_header_text || ''
     });
     const [kohteet, setKohteet] = useState([]);
     const [uusiRyhmaNimi, setUusiRyhmaNimi] = useState('');
@@ -447,6 +448,12 @@ const AsiakasKortti = ({ asiakas, onBack, onDeleted, availableTasks, showNotific
           <div className="form-group"><label>Katuosoite (Laskutus)</label><input value={form.street || ''} onChange={e => setForm({...form, street: e.target.value})} /></div>
           <div className="form-row three-col"><div><label>Postinro</label><input value={form.zip || ''} onChange={e => setForm({...form, zip: e.target.value})} /></div><div><label>Ptp</label><input value={form.city || ''} onChange={e => setForm({...form, city: e.target.value})} /></div></div>
           <div className="form-row"><div><label>Puhelin</label><input value={form.phone || ''} onChange={e => setForm({...form, phone: e.target.value})} /></div><div><label>Email</label><input value={form.email || ''} onChange={e => setForm({...form, email: e.target.value})} /></div></div>
+
+          <div className="form-group">
+              <label>Laskun lisätieto / viite (tulostuu laskulle ennen rivejä)</label>
+              <textarea value={form.invoice_header_text || ''} onChange={e => setForm({...form, invoice_header_text: e.target.value})} rows={3} />
+          </div>
+
           <div style={{marginTop: '20px', padding: '15px', background: '#2c2c2c', borderRadius: '8px', border: '1px solid #444'}}>
               <label style={{color: '#ff9800', marginBottom: '10px'}}>Maksuehto / Eräpäivä</label>
               <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>

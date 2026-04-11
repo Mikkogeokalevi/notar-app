@@ -185,6 +185,7 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
             const newTotal = -Math.abs(creditModal.invoice.total_sum);
             await addDoc(collection(db, "invoices"), {
                 title: `HYVITYSLASKU`, invoice_number: "HYV-" + creditModal.invoice.invoice_number, customer_name: creditModal.invoice.customer_name, customer_type: creditModal.invoice.customer_type, billing_address: creditModal.invoice.billing_address, 
+                invoice_header_text: creditModal.invoice.invoice_header_text || '',
                 month: creditModal.invoice.month, date: new Date().toISOString().slice(0, 10), due_date: new Date().toISOString().slice(0, 10), rows: creditRows, total_sum: newTotal, status: 'paid', type: 'credit_note', credit_reason: creditModal.reason, original_invoice_id: creditModal.invoice.id, created_at: serverTimestamp()
             });
             showNotification("Hyvityslasku luotu.", "success");
@@ -199,20 +200,23 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
         const dueDate = inv.due_date ? new Date(inv.due_date).toLocaleDateString('fi-FI') : calculateDueDate(inv);
         const billDate = new Date(inv.date).toLocaleDateString('fi-FI');
         const isB2C = inv.customer_type === 'b2c';
+
         const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
         const alvDivisor = 1 + (alvRate / 100);
         const virtualBarcode = generateVirtualBarcode(companyInfo.iban, inv.total_sum, refNum, inv.date);
 
         let customerYtunnus = inv.customer_y_tunnus || inv.customerYtunnus || inv.y_tunnus || '';
         let billingAddress = inv.billing_address || '';
+        let invoiceHeaderText = inv.invoice_header_text || '';
 
         try {
-            if ((!customerYtunnus || !billingAddress) && inv.customer_id) {
+            if ((!customerYtunnus || !billingAddress || !invoiceHeaderText) && inv.customer_id) {
                 const custSnap = await getDoc(doc(db, "customers", inv.customer_id));
                 if (custSnap.exists()) {
                     const cust = custSnap.data();
                     customerYtunnus = customerYtunnus || cust.y_tunnus || '';
                     billingAddress = billingAddress || cust.billing_address || `${cust.street || ''}, ${cust.zip || ''} ${cust.city || ''}`.trim();
+                    invoiceHeaderText = invoiceHeaderText || cust.invoice_header_text || '';
                 }
             }
         } catch (e) {
@@ -237,7 +241,7 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
         const printTitle = inv.status === 'cancelled' ? 'LASKU – MITÄTÖITY' : (inv.total_sum < 0 ? 'HYVITYSLASKU' : 'LASKU');
         const creditReasonBlock = inv.type === 'credit_note' && inv.credit_reason ? `<div style="margin-bottom:15px; padding:10px; background:#f5f5f5; border:1px solid #999; font-size:12px;"><strong>Hyvityksen syy:</strong> ${esc(inv.credit_reason)}</div>` : '';
         const cancelReasonBlock = inv.status === 'cancelled' && inv.cancel_reason ? `<div style="margin-bottom:15px; padding:10px; background:#ffebee; border:1px solid #c62828; font-size:12px; color:#b71c1c;"><strong>Mitätöinnin syy:</strong> ${esc(inv.cancel_reason)}</div>` : '';
-        
+
         const rowsHtml = inv.rows.map(r => {
             if (r.type === 'header') return `<tr class="row-header"><td colspan="2">${r.text}</td></tr>`;
             let displayPrice = isB2C ? r.total : r.total / alvDivisor;
@@ -245,23 +249,27 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
             return `<tr><td>${r.text} ${detailsHtml ? `<span class="small-text">${detailsHtml}</span>` : ''}</td><td style="text-align:right; vertical-align:top;">${displayPrice.toFixed(2)} €</td></tr>`;
         }).join('');
 
+        const invoiceHeaderHtml = invoiceHeaderText
+            ? `<div style="margin-bottom:15px; padding:10px; border:1px solid #999; font-size:12px; background:#f5f5f5; white-space: pre-line;">${esc(invoiceHeaderText)}</div>`
+            : '';
+
         doc.open();
         doc.write(`
             <!DOCTYPE html><html><head><title>Lasku ${invoiceNum}</title><script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
             <style>
                 @page { size: A4; margin: 15mm; }
                 body { font-family: Arial, sans-serif; font-size: 13px; color: #000; line-height: 1.3; margin: 0; }
-                
+
                 /* TÄRKEÄIN: Taulukon rakenne */
                 table { width: 100%; border-collapse: collapse; }
-                
+
                 /* Nämä toistuvat joka sivulla */
                 thead { display: table-header-group; }
                 tfoot { display: table-footer-group; }
-                
+
                 /* Solujen tyylit */
                 td, th { padding: 5px 0; vertical-align: top; }
-                
+
                 /* Laskurivien erillistyylit */
                 .invoice-data th { text-align: left; background-color: #ddd; padding: 8px; border: 1px solid #999; font-size: 11px; text-transform: uppercase; }
                 .invoice-data td { padding: 8px; border: 1px solid #ccc; }
@@ -290,7 +298,7 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                 svg#barcode { width: 100%; max-width: 450px; height: 50px; }
             </style>
             </head><body>
-                
+
                 <table>
                     <thead>
                         <tr>
@@ -341,10 +349,13 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
                                 ${creditReasonBlock}
                                 ${cancelReasonBlock}
 
+                                ${invoiceHeaderHtml}
+
                                 <table class="invoice-data">
                                     <thead>
                                         <tr>
                                             <th>KUVAUS</th>
+
                                             <th style="width: 100px; text-align:right;">SUMMA</th>
                                         </tr>
                                     </thead>

@@ -353,7 +353,12 @@ const WorkView = ({ availableTasks, onOpenLog, showNotification }) => {
                         <label>Asiakas:</label>
                         <select value={valittuAsiakasId} onChange={e => {setValittuAsiakasId(e.target.value); setValittuKohdeId('');}} disabled={loading}>
                             <option value="">-- Valitse asiakas --</option>
-                            {asiakkaat.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                            {asiakkaat.map(a => {
+                                const extra = (a.invoice_header_text || '').trim();
+                                const firstLine = extra ? extra.split('\n')[0].trim() : '';
+                                const label = firstLine ? `${a.name} — ${firstLine}` : a.name;
+                                return <option key={a.id} value={a.id}>{label}</option>;
+                            })}
                         </select>
                     </div>
 
