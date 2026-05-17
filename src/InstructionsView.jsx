@@ -7,6 +7,14 @@ const InstructionsView = ({ onBack }) => {
     // VERSIOHISTORIA - Uusin aina ensin
     const versions = [
         {
+            version: "2.2",
+            date: "17.05.2026",
+            changes: [
+                "Raportit: Lisätty kirjanpitoa varten laskuluettelo (CSV + tulostus/PDF), myyntiraportti ALV-erittelyllä (CSV + tulostus/PDF) sekä avoimet/myöhässä olevat myyntisaamiset (CSV + tulostus/PDF).",
+                "Raportit: Lisätty aikavälisuodatin (alku/loppu) ja valinta sisällytetäänkö avoimet/luonnokset raportteihin."
+            ]
+        },
+        {
             version: "2.1",
             date: "17.05.2026",
             changes: [
@@ -221,6 +229,11 @@ const InstructionsView = ({ onBack }) => {
                 <h3>E. Raportit & Tilastot</h3>
                 <p>Tämä näkymä tarjoaa visuaalisen katsauksen liiketoiminnan tilaan perustuen kertyneeseen dataan.</p>
                 <ul>
+                    <li><b>Kirjanpidon raportit:</b> Raportit-näkymän yläosassa on kirjanpitäjälle sopivia raportteja, jotka voi ladata CSV-tiedostona tai tulostaa/PDF:ksi.</li>
+                    <li><b>Aikaväli:</b> Valitse alku- ja loppupäivä (laskun päiväys) ennen vientiä, jotta raportti vastaa esimerkiksi kuukauden tai tilikauden tietoja.</li>
+                    <li><b>Laskuluettelo:</b> Yksi rivi per lasku (päiväys, eräpäivä, asiakas, tila, veroton/ALV/yhteensä). Sopii suoraan kirjanpitäjälle.</li>
+                    <li><b>Myyntiraportti (ALV-erittely):</b> Yhteenveto verottomasta myynnistä, ALV:sta ja verollisesta myynnistä valitulla aikavälillä.</li>
+                    <li><b>Myyntisaamiset:</b> Avoimet ja myöhässä olevat laskut (tilassa Lähetetty) eräpäivineen.</li>
                     <li><b>Kokonaislaskutus:</b> Näet heti suuren luvun, joka kertoo koko historian aikana laskutetun summan (sis. ALV). Tämä antaa nopean kokonaiskuvan.</li>
                     <li><b>Myynti kuukausittain (Pylväät):</b> Graafi näyttää, miten laskutus on jakautunut eri kuukausille. Tämän avulla on helppo seurata sesonkivaihteluita ja myynnin kehitystä.</li>
                     <li><b>Työjakauma (Piirakka):</b> Ympyrädiagrammi havainnollistaa, mitä töitä on kappalemääräisesti tehty eniten. Näet esimerkiksi nopeasti suhteen aurausten ja hiekoitusten välillä.</li>

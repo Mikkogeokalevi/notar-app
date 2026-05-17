@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from './firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import * as XLSX from 'xlsx';
 import './App.css';
@@ -14,29 +14,90 @@ const ReportsView = ({ onBack }) => {
     const [topCustomers, setTopCustomers] = useState([]);
     const [totalBilled, setTotalBilled] = useState(0);
 
+    const [companyInfo, setCompanyInfo] = useState({});
+    const [invoices, setInvoices] = useState([]);
+
+    const [dateRange, setDateRange] = useState({ start: '', end: '' });
+    const [includeDrafts, setIncludeDrafts] = useState(false);
+
     useEffect(() => {
         calculateReports();
     }, []);
 
+    const getVatMultiplier = () => {
+        const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
+        return 1 + (alvRate / 100);
+    };
+
+    const toMoney = (v) => {
+        const n = parseFloat(v || 0);
+        if (!Number.isFinite(n)) return '0.00';
+        return n.toFixed(2);
+    };
+
+    const escapeCsv = (value) => {
+        const s = value == null ? '' : String(value);
+        if (/[";\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+        return s;
+    };
+
+    const downloadCsv = (filename, headers, rows) => {
+        const content = [headers.join(';'), ...rows.map(r => r.map(escapeCsv).join(';'))].join('\r\n');
+        const blob = new Blob(["\uFEFF" + content], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+    };
+
+    const openPrintWindow = (title, bodyHtml) => {
+        const w = window.open('', '_blank');
+        if (!w) return;
+        w.document.open();
+        w.document.write(`<!doctype html><html><head><meta charset="utf-8" /><title>${title}</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 24px; }
+                h1 { margin: 0 0 8px 0; font-size: 20px; }
+                .meta { color: #666; font-size: 12px; margin-bottom: 14px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+                th, td { border: 1px solid #ddd; padding: 8px; font-size: 12px; }
+                th { background: #f5f5f5; text-align: left; }
+                .right { text-align: right; }
+            </style>
+        </head><body>
+            ${bodyHtml}
+            <script>window.onload = () => { window.print(); };</script>
+        </body></html>`);
+        w.document.close();
+    };
+
     const calculateReports = async () => {
         setLoading(true);
         try {
-            // 1. HAETAAN LASKUT (Myyntiraportit & Top Asiakkaat)
+            const settingsSnap = await getDoc(doc(db, "settings", "company_profile"));
+            const settings = settingsSnap.exists() ? settingsSnap.data() : {};
+            setCompanyInfo(settings);
+
             const invoicesSnap = await getDocs(collection(db, "invoices"));
-            const invoices = invoicesSnap.docs.map(d => d.data());
+            const invList = invoicesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            setInvoices(invList);
 
             // --- Kuukausimyynti ---
             const salesByMonth = {};
             let totalSum = 0;
             const customerSales = {};
 
-            invoices.forEach(inv => {
+            invList.forEach(inv => {
                 // Varmistetaan että lasketaan vain numerot
                 const sum = parseFloat(inv.total_sum || 0);
                 totalSum += sum;
 
                 // Kuukausi (YYYY-MM)
-                const monthKey = inv.date.slice(0, 7); 
+                const monthKey = (inv.date || '').slice(0, 7);
                 salesByMonth[monthKey] = (salesByMonth[monthKey] || 0) + sum;
 
                 // Asiakasmyynti
@@ -86,6 +147,199 @@ const ReportsView = ({ onBack }) => {
         }
     };
 
+    const filteredInvoices = invoices.filter(inv => {
+        if (!inv || !inv.date) return false;
+        if (!includeDrafts && inv.status === 'open') return false;
+        if (inv.status === 'cancelled') return false;
+        if (dateRange.start && inv.date < dateRange.start) return false;
+        if (dateRange.end && inv.date > dateRange.end) return false;
+        return true;
+    }).sort((a, b) => (a.date < b.date ? 1 : -1));
+
+    const getTotalsForInvoices = (list) => {
+        const multiplier = getVatMultiplier();
+        const gross = list.reduce((sum, inv) => sum + (parseFloat(inv.total_sum || 0) || 0), 0);
+        const net = gross / multiplier;
+        const vat = gross - net;
+        return { net, vat, gross, multiplier };
+    };
+
+    const accountingTotals = getTotalsForInvoices(filteredInvoices);
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const openReceivables = filteredInvoices.filter(inv => (inv.status === 'sent') && inv.type !== 'credit_note');
+    const overdueReceivables = openReceivables.filter(inv => {
+        const due = inv.due_date || inv.date;
+        return due && due < todayStr;
+    });
+
+    const exportInvoiceListCsv = () => {
+        const { multiplier } = accountingTotals;
+        const headers = [
+            'Lasku nro', 'Päiväys', 'Eräpäivä', 'Asiakas', 'Y-tunnus', 'Tila', 'Tyyppi', 'Veroton', `ALV ${(multiplier - 1) * 100}%`, 'Yhteensä', 'Kuukausi'
+        ];
+        const rows = filteredInvoices.map(inv => {
+            const gross = parseFloat(inv.total_sum || 0) || 0;
+            const net = gross / multiplier;
+            const vat = gross - net;
+            return [
+                inv.invoice_number || inv.id,
+                inv.date,
+                inv.due_date || '',
+                inv.customer_name || '',
+                inv.customer_y_tunnus || '',
+                inv.status || '',
+                inv.type || 'invoice',
+                toMoney(net),
+                toMoney(vat),
+                toMoney(gross),
+                inv.month || ''
+            ];
+        });
+        downloadCsv(`Laskuluettelo_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+    };
+
+    const printInvoiceList = () => {
+        const { multiplier } = accountingTotals;
+        const title = 'Laskuluettelo';
+        const rangeTxt = `${dateRange.start || '---'} – ${dateRange.end || '---'}`;
+
+        const rowsHtml = filteredInvoices.map(inv => {
+            const gross = parseFloat(inv.total_sum || 0) || 0;
+            const net = gross / multiplier;
+            const vat = gross - net;
+            return `<tr>
+                <td>${inv.invoice_number || inv.id}</td>
+                <td>${inv.date || ''}</td>
+                <td>${inv.due_date || ''}</td>
+                <td>${inv.customer_name || ''}</td>
+                <td>${inv.status || ''}</td>
+                <td class="right">${toMoney(net)}</td>
+                <td class="right">${toMoney(vat)}</td>
+                <td class="right">${toMoney(gross)}</td>
+            </tr>`;
+        }).join('');
+
+        openPrintWindow(title, `
+            <h1>${title}</h1>
+            <div class="meta">Aikaväli: ${rangeTxt} • Tulostettu: ${new Date().toLocaleString('fi-FI')}</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Lasku nro</th>
+                        <th>Päiväys</th>
+                        <th>Eräpäivä</th>
+                        <th>Asiakas</th>
+                        <th>Tila</th>
+                        <th class="right">Veroton</th>
+                        <th class="right">ALV</th>
+                        <th class="right">Yhteensä</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>
+        `);
+    };
+
+    const exportSalesSummaryCsv = () => {
+        const multiplier = getVatMultiplier();
+        const alvRate = (multiplier - 1) * 100;
+        const rangeTxt = `${dateRange.start || '---'} – ${dateRange.end || '---'}`;
+        const headers = ['Aikaväli', 'Veroton', `ALV ${alvRate}%`, 'Yhteensä'];
+        const rows = [[rangeTxt, toMoney(accountingTotals.net), toMoney(accountingTotals.vat), toMoney(accountingTotals.gross)]];
+        downloadCsv(`Myyntiraportti_ALV_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+    };
+
+    const printSalesSummary = () => {
+        const multiplier = getVatMultiplier();
+        const alvRate = (multiplier - 1) * 100;
+        const rangeTxt = `${dateRange.start || '---'} – ${dateRange.end || '---'}`;
+        openPrintWindow('Myyntiraportti (ALV)', `
+            <h1>Myyntiraportti (ALV-erittely)</h1>
+            <div class="meta">Aikaväli: ${rangeTxt} • Tulostettu: ${new Date().toLocaleString('fi-FI')}</div>
+            <table>
+                <thead><tr><th></th><th class="right">Euroa</th></tr></thead>
+                <tbody>
+                    <tr><td>Veroton myynti</td><td class="right">${toMoney(accountingTotals.net)}</td></tr>
+                    <tr><td>ALV ${alvRate.toFixed(1)}%</td><td class="right">${toMoney(accountingTotals.vat)}</td></tr>
+                    <tr><td><b>Yhteensä</b></td><td class="right"><b>${toMoney(accountingTotals.gross)}</b></td></tr>
+                </tbody>
+            </table>
+        `);
+    };
+
+    const exportReceivablesCsv = () => {
+        const multiplier = getVatMultiplier();
+        const alvRate = (multiplier - 1) * 100;
+        const headers = ['Lasku nro', 'Asiakas', 'Päiväys', 'Eräpäivä', 'Tila', 'Veroton', `ALV ${alvRate}%`, 'Yhteensä', 'Myöhässä (pv)'];
+        const rows = openReceivables.map(inv => {
+            const gross = parseFloat(inv.total_sum || 0) || 0;
+            const net = gross / multiplier;
+            const vat = gross - net;
+            const due = inv.due_date || inv.date;
+            const lateDays = due && due < todayStr ? Math.floor((new Date(todayStr) - new Date(due)) / (1000 * 60 * 60 * 24)) : 0;
+            return [
+                inv.invoice_number || inv.id,
+                inv.customer_name || '',
+                inv.date || '',
+                due || '',
+                inv.status || '',
+                toMoney(net),
+                toMoney(vat),
+                toMoney(gross),
+                lateDays
+            ];
+        });
+        downloadCsv(`Myyntisaamiset_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+    };
+
+    const printReceivables = () => {
+        const multiplier = getVatMultiplier();
+        const title = 'Avoimet myyntisaamiset';
+        const rangeTxt = `${dateRange.start || '---'} – ${dateRange.end || '---'}`;
+        const rowsHtml = openReceivables.map(inv => {
+            const gross = parseFloat(inv.total_sum || 0) || 0;
+            const net = gross / multiplier;
+            const vat = gross - net;
+            const due = inv.due_date || inv.date;
+            const lateDays = due && due < todayStr ? Math.floor((new Date(todayStr) - new Date(due)) / (1000 * 60 * 60 * 24)) : 0;
+            const highlight = lateDays > 0 ? ' style="background:#fff3e0"' : '';
+            return `<tr${highlight}>
+                <td>${inv.invoice_number || inv.id}</td>
+                <td>${inv.customer_name || ''}</td>
+                <td>${inv.date || ''}</td>
+                <td>${due || ''}</td>
+                <td>${inv.status || ''}</td>
+                <td class="right">${toMoney(net)}</td>
+                <td class="right">${toMoney(vat)}</td>
+                <td class="right">${toMoney(gross)}</td>
+                <td class="right">${lateDays}</td>
+            </tr>`;
+        }).join('');
+
+        openPrintWindow(title, `
+            <h1>${title}</h1>
+            <div class="meta">Aikaväli: ${rangeTxt} • Tulostettu: ${new Date().toLocaleString('fi-FI')}</div>
+            <div class="meta">Avoimia: ${openReceivables.length} kpl • Myöhässä: ${overdueReceivables.length} kpl</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Lasku nro</th>
+                        <th>Asiakas</th>
+                        <th>Päiväys</th>
+                        <th>Eräpäivä</th>
+                        <th>Tila</th>
+                        <th class="right">Veroton</th>
+                        <th class="right">ALV</th>
+                        <th class="right">Yhteensä</th>
+                        <th class="right">Myöhässä</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>
+        `);
+    };
+
     const lataaExcel = () => {
         // Luodaan data Exceliä varten
         const data = topCustomers.map(c => ({
@@ -105,6 +359,72 @@ const ReportsView = ({ onBack }) => {
         <div className="admin-section">
             <button onClick={onBack} className="back-btn">&larr; Takaisin</button>
             <h2>📊 Raportit & Tilastot</h2>
+
+            <div className="card-box" style={{border:'1px solid #4caf50'}}>
+                <h3 style={{marginTop: 0}}>📁 Kirjanpidon raportit</h3>
+                <div className="form-row" style={{alignItems:'flex-end'}}>
+                    <div style={{flex: 1}}>
+                        <label>Aikaväli (laskun päiväys):</label>
+                        <div style={{display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap'}}>
+                            <input type="date" value={dateRange.start} onChange={e => setDateRange({ ...dateRange, start: e.target.value })} />
+                            <span>-</span>
+                            <input type="date" value={dateRange.end} onChange={e => setDateRange({ ...dateRange, end: e.target.value })} />
+                        </div>
+                    </div>
+                    <div>
+                        <label style={{display:'block', marginBottom:'6px'}}>Sisällytä:</label>
+                        <label style={{display:'flex', gap:'8px', alignItems:'center'}}>
+                            <input type="checkbox" checked={includeDrafts} onChange={e => setIncludeDrafts(e.target.checked)} />
+                            Avoimet / luonnokset
+                        </label>
+                    </div>
+                </div>
+
+                <div style={{display:'flex', flexDirection:'column', gap:'10px', marginTop:'15px'}}>
+                    <div className="card-box" style={{background:'#1b1b1b', border:'1px solid #333'}}>
+                        <h4 style={{marginTop: 0}}>1) Laskuluettelo</h4>
+                        <div style={{color:'#aaa', fontSize:'0.9rem'}}>Rivi per lasku. Soveltuu kirjanpitäjälle ja Exceliin.</div>
+                        <div style={{display:'flex', gap:'10px', flexWrap:'wrap', marginTop:'10px'}}>
+                            <button onClick={exportInvoiceListCsv} className="save-btn" style={{background:'#2e7d32'}}>📥 CSV</button>
+                            <button onClick={printInvoiceList} className="back-btn">🖨️ Tulosta / PDF</button>
+                        </div>
+                        <div style={{marginTop:'10px', color:'#666', fontSize:'0.85rem'}}>Laskuja valitulla aikavälillä: {filteredInvoices.length} kpl</div>
+                    </div>
+
+                    <div className="card-box" style={{background:'#1b1b1b', border:'1px solid #333'}}>
+                        <h4 style={{marginTop: 0}}>2) Myyntiraportti (ALV-erittely)</h4>
+                        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'10px', marginTop:'10px'}}>
+                            <div style={{background:'#252525', border:'1px solid #333', borderRadius:'6px', padding:'10px'}}>
+                                <div style={{color:'#aaa', fontSize:'0.85rem'}}>Veroton</div>
+                                <div style={{fontSize:'1.3rem', fontWeight:'bold'}}>{toMoney(accountingTotals.net)} €</div>
+                            </div>
+                            <div style={{background:'#252525', border:'1px solid #333', borderRadius:'6px', padding:'10px'}}>
+                                <div style={{color:'#aaa', fontSize:'0.85rem'}}>ALV</div>
+                                <div style={{fontSize:'1.3rem', fontWeight:'bold'}}>{toMoney(accountingTotals.vat)} €</div>
+                            </div>
+                            <div style={{background:'#252525', border:'1px solid #333', borderRadius:'6px', padding:'10px'}}>
+                                <div style={{color:'#aaa', fontSize:'0.85rem'}}>Yhteensä</div>
+                                <div style={{fontSize:'1.3rem', fontWeight:'bold', color:'#4caf50'}}>{toMoney(accountingTotals.gross)} €</div>
+                            </div>
+                        </div>
+                        <div style={{display:'flex', gap:'10px', flexWrap:'wrap', marginTop:'10px'}}>
+                            <button onClick={exportSalesSummaryCsv} className="save-btn" style={{background:'#2e7d32'}}>📥 CSV</button>
+                            <button onClick={printSalesSummary} className="back-btn">🖨️ Tulosta / PDF</button>
+                        </div>
+                        <div style={{marginTop:'10px', color:'#666', fontSize:'0.85rem'}}>ALV % haetaan yrityksen asetuksista (Omat tiedot & Työt).</div>
+                    </div>
+
+                    <div className="card-box" style={{background:'#1b1b1b', border:'1px solid #333'}}>
+                        <h4 style={{marginTop: 0}}>3) Avoimet / myöhässä olevat myyntisaamiset</h4>
+                        <div style={{color:'#aaa', fontSize:'0.9rem'}}>Näkyy vain laskuille, jotka ovat tilassa “Lähetetty”.</div>
+                        <div style={{marginTop:'10px', color:'#666', fontSize:'0.85rem'}}>Avoimia: {openReceivables.length} kpl • Myöhässä: {overdueReceivables.length} kpl</div>
+                        <div style={{display:'flex', gap:'10px', flexWrap:'wrap', marginTop:'10px'}}>
+                            <button onClick={exportReceivablesCsv} className="save-btn" style={{background:'#2e7d32'}}>📥 CSV</button>
+                            <button onClick={printReceivables} className="back-btn">🖨️ Tulosta / PDF</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             {/* YHTEENVETO */}
             <div className="card-box" style={{textAlign:'center', background: 'linear-gradient(145deg, #1e1e1e, #252525)', border:'1px solid #2196f3'}}>
