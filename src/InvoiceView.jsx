@@ -11,23 +11,26 @@ const InvoiceView = ({ onBack, showNotification }) => {
     const [loading, setLoading] = useState(false);
     const [tasksDef, setTasksDef] = useState([]); 
     const [companyInfo, setCompanyInfo] = useState({});
+
+    const [invoiceSearchText, setInvoiceSearchText] = useState('');
+    const [batchInvoiceDate, setBatchInvoiceDate] = useState(formatDateLocal(new Date()));
     
     // --- Pikalaskun tilat ---
     const [showQuickModal, setShowQuickModal] = useState(false);
     const [customers, setCustomers] = useState([]); 
     
-    const formatDateLocal = (dateObj) => {
+    function formatDateLocal(dateObj) {
         const y = dateObj.getFullYear();
         const m = String(dateObj.getMonth() + 1).padStart(2, '0');
         const d = String(dateObj.getDate()).padStart(2, '0');
         return `${y}-${m}-${d}`;
-    };
+    }
 
-    const parseDateLocal = (dateStr) => {
+    function parseDateLocal(dateStr) {
         if (!dateStr) return new Date();
         if (dateStr instanceof Date) return dateStr;
         return new Date(`${dateStr}T00:00:00`);
-    };
+    }
 
     // Apufunktio: Laske eräpäivä
     const calculateDueDate = (startDate, termDays) => {
@@ -434,6 +437,8 @@ const InvoiceView = ({ onBack, showNotification }) => {
             const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
             const alvMultiplier = 1 + (alvRate / 100);
 
+            const invoiceDateStr = batchInvoiceDate;
+
             const finalInvoices = Object.values(invoiceBuckets).map(bucket => {
                 const { customer, entries } = bucket;
                 const rows = [];
@@ -493,7 +498,8 @@ const InvoiceView = ({ onBack, showNotification }) => {
                     });
                 });
 
-                return { id: bucket.key, customer: customer, customerId: customer.id, customerName: customer.name, invoiceTitle: bucket.title, customerType: customer.type, customer_y_tunnus: customer.y_tunnus || '', billingAddress: `${customer.street || ''}, ${customer.zip || ''} ${customer.city || ''}`, invoice_header_text: customer.invoice_header_text || '', invoice_header_print_enabled: customer.invoice_header_print_enabled !== false, rows: rows, totalSum: totalSumGross / alvMultiplier, rawEntries: entries };
+                const dueDateStr = calculateDueDateByCustomer(invoiceDateStr, customer || {});
+                return { id: bucket.key, customer: customer, customerId: customer.id, customerName: customer.name, invoiceTitle: bucket.title, customerType: customer.type, customer_y_tunnus: customer.y_tunnus || '', billingAddress: `${customer.street || ''}, ${customer.zip || ''} ${customer.city || ''}`, invoice_header_text: customer.invoice_header_text || '', invoice_header_print_enabled: customer.invoice_header_print_enabled !== false, date: invoiceDateStr, due_date: dueDateStr, rows: rows, totalSum: totalSumGross / alvMultiplier, rawEntries: entries };
             });
 
             const sorted = finalInvoices.sort((a,b) => a.invoiceTitle.localeCompare(b.invoiceTitle));
@@ -505,6 +511,14 @@ const InvoiceView = ({ onBack, showNotification }) => {
     };
 
     const toApproveList = invoices.filter(inv => selectedForApproval.has(inv.id));
+
+    const displayedInvoices = invoices.filter(inv => {
+        const q = invoiceSearchText.trim().toLowerCase();
+        if (!q) return true;
+        const t1 = (inv.invoiceTitle || '').toLowerCase();
+        const t2 = (inv.customerName || '').toLowerCase();
+        return t1.includes(q) || t2.includes(q);
+    });
 
     const handleApproveSelected = async () => {
         if (toApproveList.length === 0) return showNotification("Valitse vähintään yksi lasku.", "error");
@@ -524,8 +538,8 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 const invoiceNumberStr = currentInvoiceNum.toString();
                 currentInvoiceNum++;
                 const invoiceRef = doc(collection(db, "invoices")); 
-                const invoiceDateStr = formatDateLocal(new Date());
-                const dueDateStr = calculateDueDateByCustomer(invoiceDateStr, invoice.customer || {});
+                const invoiceDateStr = invoice.date || formatDateLocal(new Date());
+                const dueDateStr = invoice.due_date || calculateDueDateByCustomer(invoiceDateStr, invoice.customer || {});
                 batch.set(invoiceRef, {
                     invoice_number: invoiceNumberStr, title: invoice.invoiceTitle, customer_id: invoice.customerId, customer_name: invoice.customerName, customer_type: invoice.customerType, customer_y_tunnus: invoice.customer_y_tunnus || '', billing_address: invoice.billingAddress, invoice_header_text: invoice.invoice_header_text || invoice.customer?.invoice_header_text || '', invoice_header_print_enabled: invoice.invoice_header_print_enabled !== false, month: selectedMonth, date: invoiceDateStr, due_date: dueDateStr, rows: invoice.rows, total_sum: invoice.totalSum * alvMultiplier, status: 'open', created_at: timestamp
                 });
@@ -553,8 +567,8 @@ const InvoiceView = ({ onBack, showNotification }) => {
             const alvRate = companyInfo.alv_pros ? parseFloat(companyInfo.alv_pros) : 25.5;
             const alvMultiplier = 1 + (alvRate / 100);
             const invoiceRef = doc(collection(db, "invoices"));
-            const invoiceDateStr = formatDateLocal(new Date());
-            const dueDateStr = calculateDueDateByCustomer(invoiceDateStr, invoice.customer || {});
+            const invoiceDateStr = invoice.date || formatDateLocal(new Date());
+            const dueDateStr = invoice.due_date || calculateDueDateByCustomer(invoiceDateStr, invoice.customer || {});
             const batch = writeBatch(db);
             const timestamp = serverTimestamp();
             batch.set(invoiceRef, {
@@ -809,6 +823,8 @@ const InvoiceView = ({ onBack, showNotification }) => {
                 <div style={{display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap'}}>
                     <label>Valitse kuukausi:</label>
                     <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} style={{fontSize:'1.1rem'}}/>
+                    <label style={{marginLeft:'10px'}}>Laskun päiväys:</label>
+                    <input type="date" value={batchInvoiceDate} onChange={(e) => setBatchInvoiceDate(e.target.value)} style={{fontSize:'1.1rem'}} />
                     <button onClick={generateInvoices} className="save-btn" disabled={loading}>{loading ? 'Haetaan...' : '🔍 Hae laskutettavat'}</button>
                 </div>
                 
@@ -823,8 +839,19 @@ const InvoiceView = ({ onBack, showNotification }) => {
 
                 {invoices.length > 0 && (
                     <div style={{width:'100%', display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap'}}>
+                        <input
+                            placeholder="Hae laskuluonnoksia..."
+                            value={invoiceSearchText}
+                            onChange={(e) => setInvoiceSearchText(e.target.value)}
+                            style={{flex:'1 1 240px', maxWidth:'360px', background:'#2c2c2c', border:'1px solid #444', color:'white', borderRadius:'6px', padding:'10px 12px'}}
+                        />
                         <label style={{display:'flex', alignItems:'center', gap:'8px', cursor:'pointer'}}>
-                            <input type="checkbox" className="big-checkbox" checked={selectedForApproval.size === invoices.length} onChange={e => setSelectedForApproval(e.target.checked ? new Set(invoices.map(i => i.id)) : new Set())} />
+                            <input type="checkbox" className="big-checkbox" checked={displayedInvoices.length > 0 && displayedInvoices.every(i => selectedForApproval.has(i.id))} onChange={e => setSelectedForApproval(prev => {
+                                const next = new Set(prev);
+                                if (e.target.checked) displayedInvoices.forEach(i => next.add(i.id));
+                                else displayedInvoices.forEach(i => next.delete(i.id));
+                                return next;
+                            })} />
                             <span style={{fontSize:'0.9rem'}}>Valitse kaikki</span>
                         </label>
                         <button onClick={handleApproveSelected} className="save-btn" style={{background: '#e65100'}} disabled={toApproveList.length === 0}>✅ Hyväksy valitut ({toApproveList.length})</button>
@@ -833,7 +860,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
             </div>
 
             <div style={{display:'flex', flexDirection:'column', gap:'20px'}}>
-                {invoices.map((inv, index) => (
+                {displayedInvoices.map((inv, index) => (
                     <div key={inv.id} style={{background:'#1e1e1e', border:'1px solid #444', borderRadius:'8px', overflow:'hidden'}}>
                         <div style={{background:'#333', padding:'15px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'10px'}}>
                             <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
@@ -842,6 +869,20 @@ const InvoiceView = ({ onBack, showNotification }) => {
                                 </label>
                                 <div>
                                     <h3 style={{margin:0}}>{inv.invoiceTitle}</h3>
+                                    <div style={{marginTop:'6px', display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap'}}>
+                                        <span style={{fontSize:'0.8em', color:'#aaa'}}>Laskun päiväys:</span>
+                                        <input
+                                            type="date"
+                                            value={inv.date || batchInvoiceDate}
+                                            onChange={(e) => setInvoices(prev => prev.map(x => {
+                                                if (x.id !== inv.id) return x;
+                                                const newDate = e.target.value;
+                                                const due = calculateDueDateByCustomer(newDate, x.customer || {});
+                                                return { ...x, date: newDate, due_date: due };
+                                            }))}
+                                            style={{fontSize:'0.9rem'}}
+                                        />
+                                    </div>
                                     <span style={{fontSize:'0.8em', color:'#aaa'}}>{inv.customerType === 'b2c' ? 'Yksityinen (Sis. ALV)' : 'Yritys/Isännöinti (+ ALV)'}</span>
                                     {(() => {
                                         const extra = (inv.invoice_header_text || inv.customer?.invoice_header_text || '').trim();

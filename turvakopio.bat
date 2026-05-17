@@ -9,7 +9,8 @@ set hour=%time:~0,2%
 set min=%time:~3,2%
 if "%hour:~0,1%" == " " set hour=0%hour:~1,1%
 
-set foldername=_BACKUPS\backup_%year%-%month%-%day%_%hour%%min%
+set "backupRoot=C:\Users\Tompe\Documents\NOTAR_BACKUP"
+set "foldername=%backupRoot%\backup_%year%-%month%-%day%_%hour%%min%"
 
 echo ==========================================
 echo      LUODAAN PIKA-VARMUUSKOPIO
@@ -18,6 +19,7 @@ echo Kohde: %foldername%
 echo.
 
 REM Luodaan kansio
+if not exist "%backupRoot%" mkdir "%backupRoot%"
 mkdir "%foldername%"
 
 REM Kopioidaan vain TÄRKEÄT tiedostot (ei node_modules kansiota!)
@@ -32,6 +34,6 @@ echo.
 echo ==========================================
 echo      TURVAKOPIO OTETTU!
 echo ==========================================
-echo Loydat sen kansion "_BACKUPS" alta.
+echo Loydat sen kansion "NOTAR_BACKUP" alta.
 echo.
 pause
