@@ -7,6 +7,13 @@ const InstructionsView = ({ onBack }) => {
     // VERSIOHISTORIA - Uusin aina ensin
     const versions = [
         {
+            version: "2.3",
+            date: "17.05.2026",
+            changes: [
+                "Raportit: Lisätty aikavälin pikapainikkeet (Tämä kuu / Edellinen / 3 kk / Vuosi / Tyhjennä) ja korjattu päivämäärien muodostus (ei enää päivän heittoa)."
+            ]
+        },
+        {
             version: "2.2",
             date: "17.05.2026",
             changes: [
@@ -191,6 +198,8 @@ const InstructionsView = ({ onBack }) => {
                     <li><b>Asiakaskortti:</b> Hallinnoi yhteystietoja, laskutusosoitetta, y-tunnusta ja maksuehtoa (7pv, 14pv, 30pv tai kiinteä eräpäivä).</li>
                     <li><b>Kohteet ja ryhmät:</b> Voit luoda asiakkaalle ryhmiä (esim. eri taloyhtiöt isännöitsijän alla) ja lisätä niihin kohteita (osoitteita).</li>
                     <li><b>Hinnoittelun hierarkia:</b> Sovellus tarkistaa hinnan ensin kohteelta. Jos kohteelle ei ole asetettu omaa hintaa, käytetään asiakkaan oletushinnastoa.</li>
+                    <li><b>Laskun otsikkoteksti:</b> Asiakaskortilla voi asettaa laskulle tulostuvan otsikkotekstin (esim. "Kiinteistöhuolto") sekä valinnan tulostetaanko otsikko laskulle.</li>
+                    <li><b>Otsikkotekstin tunniste:</b> Asiakaslistoissa ja valikoissa näkyy tarvittaessa lyhyt ote otsikkotekstistä (…-pääte), jotta samannimiset asiakkaat erottuvat.</li>
                 </ul>
 
                 <h3>B. Yrityksen Asetukset</h3>
@@ -207,7 +216,9 @@ const InstructionsView = ({ onBack }) => {
                         <br />- 🗑️ <b>Poista luonnos:</b> Voit poistaa luonnoksen listalta. Työt eivät katoa tietokannasta, vaan ne jäävät odottamaan seuraavaa laskutuskertaa.
                     </li>
                     <li><b>Haku:</b> Luonnoslistan hakukentällä voit suodattaa luonnoksia kirjoittamalla osan asiakasnimestä tai otsikosta.</li>
+                    <li><b>Laskun otsikkoteksti:</b> Laskuluonnokset perivät otsikkotekstin ja tulostusvalinnan asiakaskortilta. Otsikko näkyy tulostuksessa vain, jos se on asetettu ja valinta on päällä.</li>
                     <li><b>Päiväys per lasku:</b> Luonnoskortilta voi tarvittaessa vaihtaa yksittäisen laskun päiväyksen (eräpäivä päivittyy maksuehdon mukaan).</li>
+                    <li><b>Oletuspäiväys:</b> Voit asettaa laskujen oletuspäiväyksen ennen luonnosten luontia (sovellus käyttää sitä kaikille luonnoksille, kunnes vaihdat yksittäisen).</li>
                     <li><b>3. Valitse & Hyväksy:</b>
                         <br />- Valitse listalta ne laskut, jotka haluat luoda juuri nyt (rastita ruutu).
                         <br />- Paina "✅ Hyväksy Valitut". Tämä luo viralliset laskut ja numeroinnin vain valituille.
@@ -224,13 +235,15 @@ const InstructionsView = ({ onBack }) => {
                     <li><b>Asiakkaan luonti:</b> Jos kirjoitat uuden nimen pikalaskuun, järjestelmä tallentaa sen automaattisesti asiakasrekisteriin myöhempää käyttöä varten.</li>
                     <li><b>ALV-käsittely:</b> Syötä hinnat aina ALV 0%. Sovellus laskee loppusumman verollisena yrityksen asetusten mukaan.</li>
                     <li><b>Maksuehdot:</b> Pikalaskulle voi valita laskukohtaisen maksuehdon ja eräpäivän.</li>
+                    <li><b>Laskun otsikkoteksti:</b> Pikalaskussa voi asettaa otsikkotekstin ja valita tulostetaanko se laskulle.</li>
                 </ul>
 
                 <h3>E. Raportit & Tilastot</h3>
                 <p>Tämä näkymä tarjoaa visuaalisen katsauksen liiketoiminnan tilaan perustuen kertyneeseen dataan.</p>
                 <ul>
                     <li><b>Kirjanpidon raportit:</b> Raportit-näkymän yläosassa on kirjanpitäjälle sopivia raportteja, jotka voi ladata CSV-tiedostona tai tulostaa/PDF:ksi.</li>
-                    <li><b>Aikaväli:</b> Valitse alku- ja loppupäivä (laskun päiväys) ennen vientiä, jotta raportti vastaa esimerkiksi kuukauden tai tilikauden tietoja.</li>
+                    <li><b>Aikaväli:</b> Valitse alku- ja loppupäivä (laskun päiväys) ennen vientiä, jotta raportti vastaa esimerkiksi kuukauden tai tilikauden tietoja. Aikavälin voi asettaa myös pikapainikkeilla (Tämä kuu / Edellinen / 3 kk / Vuosi).</li>
+                    <li><b>Avoimet / luonnokset:</b> Voit valita sisällytetäänkö avoimet/laskuluonnokset raportteihin. Oletuksena mukaan lasketaan vain “virallisemmat” laskut (ei avoimia).</li>
                     <li><b>Laskuluettelo:</b> Yksi rivi per lasku (päiväys, eräpäivä, asiakas, tila, veroton/ALV/yhteensä). Sopii suoraan kirjanpitäjälle.</li>
                     <li><b>Myyntiraportti (ALV-erittely):</b> Yhteenveto verottomasta myynnistä, ALV:sta ja verollisesta myynnistä valitulla aikavälillä.</li>
                     <li><b>Myyntisaamiset:</b> Avoimet ja myöhässä olevat laskut (tilassa Lähetetty) eräpäivineen.</li>
@@ -268,6 +281,10 @@ const InstructionsView = ({ onBack }) => {
                         <br />- <b>Rivitietojen muokkaus:</b> Voit lisätä uusia rivejä, poistaa rivejä tai muuttaa hintaa/tekstiä.
                         <br />- <b>HUOM Hinnat:</b> Jos asiakas on yritys (B2B), syötä hinnat verottomana (ALV 0%). Jos yksityinen (B2C), syötä hinnat verollisena. Sovellus laskee loput.
                     </li>
+                    <li><b>Haku & suodattimet:</b>
+                        <br />- Arkiston hakukentällä voit hakea asiakasta tai laskunumeroa.
+                        <br />- Suodattimista voi rajata aikavälin ja asiakkaan mukaan.
+                    </li>
                     <li><b>Tilat ja Toiminnot:</b> 
                         <br />- 🟠 <b>Avoin:</b> Muokkaus sallittu.
                         <br />- 🔵 <b>Lähetetty (📧):</b> Lukitsee muokkauksen.
@@ -275,7 +292,8 @@ const InstructionsView = ({ onBack }) => {
                         <br />- ❌ <b>Mitätöi:</b> Merkitsee laskun mitätöidyksi (ei poista).
                         <br />- 🗑️ <b>Poista kokonaan:</b> Poistaa laskun ja palauttaa työt tekemättömiksi (vain jos pakko).
                     </li>
-                    <li><b>Tulostus (🖨️):</b> Luo virallisen PDF-laskun viivakoodilla. Sisältää nyt myös Y-tunnuksen ja yhteystiedot.</li>
+                    <li><b>Myyntisaamiset-raportti:</b> Raportit-näkymän myyntisaamiset-lista perustuu “Lähetetty”-tilaan. Kun lasku on lähetetty asiakkaalle, merkitse se lähetetyksi (📧), jotta se näkyy avoimissa saamisissa.</li>
+                    <li><b>Tulostus (🖨️):</b> Luo virallisen PDF-laskun viivakoodilla. Sisältää Y-tunnuksen ja yhteystiedot. Jos laskulla on asetettu otsikkoteksti ja tulostus on sallittu, otsikko tulostuu ennen rivejä.</li>
                 </ul>
 
                 <h2 style={{color:'#4caf50'}}>5. TIETOTURVA</h2>

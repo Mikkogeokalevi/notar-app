@@ -80,34 +80,37 @@ const ReportsView = ({ onBack }) => {
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-        const toIso = (d) => {
+        const toIsoLocal = (d) => {
             const dd = new Date(d);
-            return dd.toISOString().slice(0, 10);
+            const yyyy = dd.getFullYear();
+            const mm = String(dd.getMonth() + 1).padStart(2, '0');
+            const day = String(dd.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${day}`;
         };
 
         if (type === 'thisMonth') {
-            setDateRange({ start: toIso(startOfMonth), end: toIso(endOfMonth) });
+            setDateRange({ start: toIsoLocal(startOfMonth), end: toIsoLocal(endOfMonth) });
             return;
         }
 
         if (type === 'prevMonth') {
             const prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
             const prevEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-            setDateRange({ start: toIso(prevStart), end: toIso(prevEnd) });
+            setDateRange({ start: toIsoLocal(prevStart), end: toIsoLocal(prevEnd) });
             return;
         }
 
         if (type === '3kk') {
             const start = new Date(now);
             start.setMonth(start.getMonth() - 3);
-            setDateRange({ start: toIso(start), end: toIso(now) });
+            setDateRange({ start: toIsoLocal(start), end: toIsoLocal(now) });
             return;
         }
 
         if (type === 'year') {
             const start = new Date(now.getFullYear(), 0, 1);
             const end = new Date(now.getFullYear(), 11, 31);
-            setDateRange({ start: toIso(start), end: toIso(end) });
+            setDateRange({ start: toIsoLocal(start), end: toIsoLocal(end) });
             return;
         }
 
