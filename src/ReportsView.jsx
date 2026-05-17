@@ -75,6 +75,47 @@ const ReportsView = ({ onBack }) => {
         w.document.close();
     };
 
+    const applyDateFilter = (type) => {
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+        const toIso = (d) => {
+            const dd = new Date(d);
+            return dd.toISOString().slice(0, 10);
+        };
+
+        if (type === 'thisMonth') {
+            setDateRange({ start: toIso(startOfMonth), end: toIso(endOfMonth) });
+            return;
+        }
+
+        if (type === 'prevMonth') {
+            const prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const prevEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+            setDateRange({ start: toIso(prevStart), end: toIso(prevEnd) });
+            return;
+        }
+
+        if (type === '3kk') {
+            const start = new Date(now);
+            start.setMonth(start.getMonth() - 3);
+            setDateRange({ start: toIso(start), end: toIso(now) });
+            return;
+        }
+
+        if (type === 'year') {
+            const start = new Date(now.getFullYear(), 0, 1);
+            const end = new Date(now.getFullYear(), 11, 31);
+            setDateRange({ start: toIso(start), end: toIso(end) });
+            return;
+        }
+
+        if (type === 'clear') {
+            setDateRange({ start: '', end: '' });
+        }
+    };
+
     const calculateReports = async () => {
         setLoading(true);
         try {
@@ -362,6 +403,16 @@ const ReportsView = ({ onBack }) => {
 
             <div className="card-box" style={{border:'1px solid #4caf50'}}>
                 <h3 style={{marginTop: 0}}>📁 Kirjanpidon raportit</h3>
+                <div style={{marginBottom:'10px'}}>
+                    <label style={{marginBottom:'6px', color:'#aaa', display:'block'}}>Aikajakso:</label>
+                    <div style={{display:'flex', gap:'6px', flexWrap:'wrap'}}>
+                        <button className="back-btn" onClick={() => applyDateFilter('thisMonth')}>Tämä kuu</button>
+                        <button className="back-btn" onClick={() => applyDateFilter('prevMonth')}>Edellinen</button>
+                        <button className="back-btn" onClick={() => applyDateFilter('3kk')}>3 kk</button>
+                        <button className="back-btn" onClick={() => applyDateFilter('year')}>Vuosi</button>
+                        <button className="back-btn" onClick={() => applyDateFilter('clear')} style={{color:'#ff5252', borderColor:'#ff5252'}}>Tyhjennä</button>
+                    </div>
+                </div>
                 <div className="form-row" style={{alignItems:'flex-end'}}>
                     <div style={{flex: 1}}>
                         <label>Aikaväli (laskun päiväys):</label>
