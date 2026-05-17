@@ -1,17 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import './App.css';
-import InvoiceView from './InvoiceView'; 
-import InvoiceArchive from './InvoiceArchive';
-import InstructionsView from './InstructionsView';
-import ReportsView from './ReportsView';
-import WorkView from './WorkView'; // <--- TÄMÄ ON SE RATKAISEVA LISÄYS!
-import Login from './Login'; 
 import logo from './logo.jpeg'; 
 import { db, auth } from './firebase'; 
 import { 
   doc, setDoc, addDoc, deleteDoc, updateDoc, collection, onSnapshot, query, orderBy, getDoc, where, arrayUnion, serverTimestamp, getDocs 
 } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth'; 
+
+const InvoiceView = lazy(() => import('./InvoiceView'));
+const InvoiceArchive = lazy(() => import('./InvoiceArchive'));
+const InstructionsView = lazy(() => import('./InstructionsView'));
+const ReportsView = lazy(() => import('./ReportsView'));
+const WorkView = lazy(() => import('./WorkView'));
+const Login = lazy(() => import('./Login'));
 
 // --- TURVALLISUUS: SALLITUT KÄYTTÄJÄT ---
 const ALLOWED_EMAILS = [
@@ -907,7 +908,11 @@ function App() {
   }
 
   if (!user) {
-    return <Login />;
+    return (
+      <Suspense fallback={<div style={{color: 'white', textAlign: 'center', marginTop: '50px'}}>Ladataan...</div>}>
+        <Login />
+      </Suspense>
+    );
   }
 
   return (
@@ -921,18 +926,20 @@ function App() {
 
       <InfoBar currentView={currentView} setCurrentView={setCurrentView} />
 
-      {currentView === 'tyot' && <WorkView availableTasks={tasks} onOpenLog={() => setCurrentView('log')} showNotification={showNotification} />}
-      {currentView === 'log' && <WorkLog onBack={() => setCurrentView('tyot')} showNotification={showNotification} requestConfirm={requestConfirm} />}
-      
-      {currentView === 'admin' && <AdminDashboard />}
-      {/* HUOM: NYT VÄLITÄMME 'user' TIEDON KOMPONENTILLE, JOTTA VARMUUSKOPIO NAPPI TOIMII */}
-      {currentView === 'settings' && <CompanySettings onBack={() => setCurrentView('admin')} showNotification={showNotification} requestConfirm={requestConfirm} user={user} />}
-      {currentView === 'customers' && <CustomerView onBack={() => setCurrentView('admin')} availableTasks={tasks} showNotification={showNotification} requestConfirm={requestConfirm} />}
-      {currentView === 'invoicing' && <InvoiceView onBack={() => setCurrentView('admin')} showNotification={showNotification} />}
-      {currentView === 'archive' && <InvoiceArchive onBack={() => setCurrentView('admin')} showNotification={showNotification} requestConfirm={requestConfirm} />}
-	  {currentView === 'reports' && <ReportsView onBack={() => setCurrentView('admin')} />}
-      {currentView === 'instructions' && <InstructionsView onBack={() => setCurrentView('admin')} />}
-      {currentView === 'ghostCleanup' && <GhostCleanupView onBack={() => setCurrentView('admin')} showNotification={showNotification} requestConfirm={requestConfirm} />}
+      <Suspense fallback={<div className="admin-section"><p style={{color:'#aaa'}}>Ladataan...</p></div>}>
+        {currentView === 'tyot' && <WorkView availableTasks={tasks} onOpenLog={() => setCurrentView('log')} showNotification={showNotification} />}
+        {currentView === 'log' && <WorkLog onBack={() => setCurrentView('tyot')} showNotification={showNotification} requestConfirm={requestConfirm} />}
+        
+        {currentView === 'admin' && <AdminDashboard />}
+        {/* HUOM: NYT VÄLITÄMME 'user' TIEDON KOMPONENTILLE, JOTTA VARMUUSKOPIO NAPPI TOIMII */}
+        {currentView === 'settings' && <CompanySettings onBack={() => setCurrentView('admin')} showNotification={showNotification} requestConfirm={requestConfirm} user={user} />}
+        {currentView === 'customers' && <CustomerView onBack={() => setCurrentView('admin')} availableTasks={tasks} showNotification={showNotification} requestConfirm={requestConfirm} />}
+        {currentView === 'invoicing' && <InvoiceView onBack={() => setCurrentView('admin')} showNotification={showNotification} />}
+        {currentView === 'archive' && <InvoiceArchive onBack={() => setCurrentView('admin')} showNotification={showNotification} requestConfirm={requestConfirm} />}
+	    {currentView === 'reports' && <ReportsView onBack={() => setCurrentView('admin')} />}
+        {currentView === 'instructions' && <InstructionsView onBack={() => setCurrentView('admin')} />}
+        {currentView === 'ghostCleanup' && <GhostCleanupView onBack={() => setCurrentView('admin')} showNotification={showNotification} requestConfirm={requestConfirm} />}
+      </Suspense>
 
       <footer className="footer-logo-container">
           <img src="alaMKlogo.png" alt="mikkokalevi 2026 © All Rights Reserved." className="footer-logo" />
