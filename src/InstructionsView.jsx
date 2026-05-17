@@ -7,6 +7,15 @@ const InstructionsView = ({ onBack }) => {
     // VERSIOHISTORIA - Uusin aina ensin
     const versions = [
         {
+            version: "2.1",
+            date: "17.05.2026",
+            changes: [
+                "Työhistoria: Muokkaa kirjausta -ikkunassa voi nyt vaihtaa myös asiakkaan ja kohteen, jos työ on kirjattu vahingossa väärin.",
+                "Laskutus: Laskuluonnoslistaan lisätty hakukenttä (suodattaa luonnoksia asiakas/otsikko -tekstillä).",
+                "Laskutus: Voit valita laskuille oletuspäiväyksen ennen luonnosten luontia sekä muuttaa päiväyksen yksittäiseltä luonnokselta (eräpäivä päivittyy maksuehdon mukaan)."
+            ]
+        },
+        {
             version: "2.0",
             date: "06.04.2026",
             changes: [
@@ -164,6 +173,7 @@ const InstructionsView = ({ onBack }) => {
                     <li><b>Määräperusteinen (kg):</b> Esimerkiksi hiekoituksessa syötetään käytetty määrä kiloina suoraan kohteen kohdalle.</li>
                     <li><b>Täsmäkirjaus (Lisätyöt & Liitetyöt):</b> Jos työtä ei ole vakiosopimuksessa, valitse asiakas ja kohde, kirjoita selite ja määrittele hinta (Työ ja Tarvikkeet erikseen ALV 0%).</li>
                     <li><b>Selaa & Muokkaa:</b> Alareunan painikkeesta pääset näkemään omat kirjauksesi ("Selaa & Muokkaa kirjauksia"). Voit korjata virheitä tai poistaa turhia kirjauksia niin kauan kuin niitä ei ole vielä laskutettu.</li>
+                    <li><b>Työhistoria:</b> Toimistossa "Työhistoria"-näkymässä voit muokata kirjausta myös jälkikäteen. Tarvittaessa voit vaihtaa myös asiakkaan ja kohteen, jos kirjaus on mennyt väärin.</li>
                 </ul>
 
                 <h2 style={{color:'#4caf50'}}>3. TOIMISTON OHJAUSPANEELI</h2>
@@ -183,11 +193,13 @@ const InstructionsView = ({ onBack }) => {
 
                 <h3>C. Laskutus (Automaatio & Hallinta)</h3>
                 <ul>
-                    <li><b>1. Generointi:</b> Valitse kuukausi ja paina "Hae laskutettavat". Sovellus kerää kaikki kyseisen kuukauden kirjaukset ja yhdistää ne asiakaskohtaisiksi laskuluonnoksiksi.</li>
+                    <li><b>1. Generointi:</b> Valitse kuukausi ja laskun päiväys ja paina "Hae laskutettavat". Sovellus kerää kaikki kyseisen kuukauden kirjaukset ja yhdistää ne asiakaskohtaisiksi laskuluonnoksiksi.</li>
                     <li><b>2. Tarkista & Muokkaa:</b>
                         <br />- ✏️ <b>Muokkaa luonnosta:</b> Voit avata yksittäisen laskuluonnoksen, muuttaa hintoja, tekstejä tai lisätä rivejä ennen hyväksyntää.
                         <br />- 🗑️ <b>Poista luonnos:</b> Voit poistaa luonnoksen listalta. Työt eivät katoa tietokannasta, vaan ne jäävät odottamaan seuraavaa laskutuskertaa.
                     </li>
+                    <li><b>Haku:</b> Luonnoslistan hakukentällä voit suodattaa luonnoksia kirjoittamalla osan asiakasnimestä tai otsikosta.</li>
+                    <li><b>Päiväys per lasku:</b> Luonnoskortilta voi tarvittaessa vaihtaa yksittäisen laskun päiväyksen (eräpäivä päivittyy maksuehdon mukaan).</li>
                     <li><b>3. Valitse & Hyväksy:</b>
                         <br />- Valitse listalta ne laskut, jotka haluat luoda juuri nyt (rastita ruutu).
                         <br />- Paina "✅ Hyväksy Valitut". Tämä luo viralliset laskut ja numeroinnin vain valituille.
