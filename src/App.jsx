@@ -179,6 +179,8 @@ const WorkLog = ({ onBack, showNotification, requestConfirm }) => {
     const [entries, setEntries] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [editingEntry, setEditingEntry] = useState(null);
+    const [customers, setCustomers] = useState([]);
+    const [properties, setProperties] = useState([]);
 
     useEffect(() => {
         const q = query(collection(db, "work_entries"), where("invoiced", "==", false));
@@ -188,6 +190,25 @@ const WorkLog = ({ onBack, showNotification, requestConfirm }) => {
             setEntries(list);
         });
         return () => unsubscribe();
+    }, []);
+
+    useEffect(() => {
+        const fetch = async () => {
+            try {
+                const custSnap = await getDocs(query(collection(db, "customers"), orderBy("name")));
+                setCustomers(custSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+            } catch (e) {
+                console.error('Asiakkaiden haku epäonnistui:', e);
+            }
+
+            try {
+                const propSnap = await getDocs(query(collection(db, "properties"), orderBy("address")));
+                setProperties(propSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+            } catch (e) {
+                console.error('Kohteiden haku epäonnistui:', e);
+            }
+        };
+        fetch();
     }, []);
 
     const handleDelete = (id) => {
@@ -203,6 +224,12 @@ const WorkLog = ({ onBack, showNotification, requestConfirm }) => {
             await updateDoc(doc(db, "work_entries", editingEntry.id), {
                 date: editingEntry.date,
                 description: editingEntry.description || '',
+                customer_id: editingEntry.customer_id || null,
+                customer_name: editingEntry.customer_name || '',
+                property_id: editingEntry.property_id || null,
+                property_address: editingEntry.property_address || '',
+                group: editingEntry.group || 'Muu',
+                cost_center: editingEntry.cost_center || null,
                 value: editingEntry.value || true, 
                 price_work: editingEntry.price_work || '0', 
                 price_material: editingEntry.price_material || '0'
@@ -251,7 +278,120 @@ const WorkLog = ({ onBack, showNotification, requestConfirm }) => {
                 {filteredEntries.length === 0 && <p>Ei kirjauksia.</p>}
             </div>
             {editingEntry && (
-                <div className="modal-overlay"><div className="modal-content"><h3>Muokkaa kirjausta</h3><div className="form-group"><label>Päivämäärä</label><input type="date" value={editingEntry.date} onChange={e => setEditingEntry({...editingEntry, date: e.target.value})} /></div>{editingEntry.task_type === 'kg' && (<div className="form-group"><label>Määrä (kg)</label><input type="number" value={editingEntry.value} onChange={e => setEditingEntry({...editingEntry, value: e.target.value})} /></div>)}<div className="form-row"><div><label>Työ Hinta (€)</label><input type="number" value={editingEntry.price_work} onChange={e => setEditingEntry({...editingEntry, price_work: e.target.value})} /></div>{editingEntry.task_type === 'material' && (<div><label>Tarvike (€)</label><input type="number" value={editingEntry.price_material} onChange={e => setEditingEntry({...editingEntry, price_material: e.target.value})} /></div>)}</div><div className="form-group"><label>Selite</label><input value={editingEntry.description || ''} onChange={e => setEditingEntry({...editingEntry, description: e.target.value})} placeholder="Lisätiedot..." /></div><div style={{display:'flex', gap:'10px', marginTop:'20px'}}><button onClick={handleSaveEdit} className="save-btn">Tallenna</button><button onClick={() => setEditingEntry(null)} className="back-btn">Peruuta</button></div></div></div>
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <h3>Muokkaa kirjausta</h3>
+
+                        <div className="form-group">
+                            <label>Asiakas</label>
+                            <select
+                                value={editingEntry.customer_id || ''}
+                                onChange={(e) => {
+                                    const newCustomerId = e.target.value;
+                                    const c = customers.find(x => x.id === newCustomerId);
+                                    const address = c
+                                        ? (c.billing_address || `${c.street || ''}, ${c.zip || ''} ${c.city || ''}`.trim() || c.name)
+                                        : '';
+                                    const newGroup = c
+                                        ? (c.type === 'b2c' ? 'Yksityiset' : (c.type === 'isannointi' ? 'Isännöinti' : 'Yritykset'))
+                                        : (editingEntry.group || 'Muu');
+                                    setEditingEntry({
+                                        ...editingEntry,
+                                        customer_id: newCustomerId || null,
+                                        customer_name: c?.name || editingEntry.customer_name,
+                                        property_id: null,
+                                        property_address: address,
+                                        group: newGroup,
+                                        cost_center: null
+                                    });
+                                }}
+                            >
+                                <option value="">-- Valitse asiakas --</option>
+                                {customers.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="form-group">
+                            <label>Kohde</label>
+                            <select
+                                value={editingEntry.property_id || ''}
+                                disabled={!editingEntry.customer_id}
+                                onChange={(e) => {
+                                    const newPropId = e.target.value;
+                                    const p = properties.find(x => x.id === newPropId);
+                                    if (!newPropId) {
+                                        const c = customers.find(x => x.id === editingEntry.customer_id);
+                                        const address = c
+                                            ? (c.billing_address || `${c.street || ''}, ${c.zip || ''} ${c.city || ''}`.trim() || c.name)
+                                            : (editingEntry.property_address || '');
+                                        const newGroup = c
+                                            ? (c.type === 'b2c' ? 'Yksityiset' : (c.type === 'isannointi' ? 'Isännöinti' : 'Yritykset'))
+                                            : (editingEntry.group || 'Muu');
+                                        setEditingEntry({
+                                            ...editingEntry,
+                                            property_id: null,
+                                            property_address: address,
+                                            group: newGroup,
+                                            cost_center: null
+                                        });
+                                        return;
+                                    }
+                                    setEditingEntry({
+                                        ...editingEntry,
+                                        property_id: newPropId,
+                                        property_address: p?.address || editingEntry.property_address,
+                                        group: p?.group || editingEntry.group || 'Muu',
+                                        cost_center: p?.cost_center || editingEntry.cost_center || null
+                                    });
+                                }}
+                            >
+                                <option value="">-- Ei kohdetta / asiakaskohtainen --</option>
+                                {properties
+                                    .filter(p => (p.customer_id || '') === (editingEntry.customer_id || ''))
+                                    .map(p => (
+                                        <option key={p.id} value={p.id}>{p.address}</option>
+                                    ))}
+                            </select>
+                        </div>
+
+                        <div className="form-group">
+                            <label>Päivämäärä</label>
+                            <input type="date" value={editingEntry.date} onChange={e => setEditingEntry({...editingEntry, date: e.target.value})} />
+                        </div>
+
+                        {editingEntry.task_type === 'kg' && (
+                            <div className="form-group">
+                                <label>Määrä (kg)</label>
+                                <input type="number" value={editingEntry.value} onChange={e => setEditingEntry({...editingEntry, value: e.target.value})} />
+                            </div>
+                        )}
+
+                        <div className="form-row">
+                            <div>
+                                <label>Työ Hinta (€)</label>
+                                <input type="number" value={editingEntry.price_work} onChange={e => setEditingEntry({...editingEntry, price_work: e.target.value})} />
+                            </div>
+                            {editingEntry.task_type === 'material' && (
+                                <div>
+                                    <label>Tarvike (€)</label>
+                                    <input type="number" value={editingEntry.price_material} onChange={e => setEditingEntry({...editingEntry, price_material: e.target.value})} />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="form-group">
+                            <label>Selite</label>
+                            <input value={editingEntry.description || ''} onChange={e => setEditingEntry({...editingEntry, description: e.target.value})} placeholder="Lisätiedot..." />
+                        </div>
+
+                        <div style={{display:'flex', gap:'10px', marginTop:'20px'}}>
+                            <button onClick={handleSaveEdit} className="save-btn">Tallenna</button>
+                            <button onClick={() => setEditingEntry(null)} className="back-btn">Peruuta</button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     )
