@@ -179,6 +179,9 @@ const InfoBar = ({ currentView, setCurrentView }) => {
 const WorkLog = ({ onBack, showNotification, requestConfirm }) => {
     const [entries, setEntries] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterMonth, setFilterMonth] = useState('');
+    const [filterCustomer, setFilterCustomer] = useState('');
+    const [filterTask, setFilterTask] = useState('');
     const [editingEntry, setEditingEntry] = useState(null);
     const [customers, setCustomers] = useState([]);
     const [properties, setProperties] = useState([]);
@@ -242,18 +245,68 @@ const WorkLog = ({ onBack, showNotification, requestConfirm }) => {
         }
     };
 
-    const filteredEntries = entries.filter(e => 
-        (e.customer_name && e.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (e.property_address && e.property_address.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (e.task_name && e.task_name.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const months = [...new Set(entries.map(e => (e.date || '').slice(0, 7)).filter(Boolean))].sort().reverse();
+    const customersInEntries = [...new Set(entries.map(e => e.customer_name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    const tasksInEntries = [...new Set(entries.map(e => e.task_name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+
+    const filteredEntries = entries.filter(e => {
+        if (filterMonth && (e.date || '').slice(0, 7) !== filterMonth) return false;
+        if (filterCustomer && (e.customer_name || '') !== filterCustomer) return false;
+        if (filterTask && (e.task_name || '') !== filterTask) return false;
+
+        const txt = searchTerm.trim().toLowerCase();
+        if (!txt) return true;
+        return (
+            (e.customer_name && e.customer_name.toLowerCase().includes(txt)) ||
+            (e.property_address && e.property_address.toLowerCase().includes(txt)) ||
+            (e.task_name && e.task_name.toLowerCase().includes(txt)) ||
+            (e.description && e.description.toLowerCase().includes(txt))
+        );
+    });
 
     return (
         <div className="admin-section">
             <button onClick={onBack} className="back-btn">&larr; Takaisin</button>
             <h2>Työhistoria</h2>
             <div className="card-box">
-                <input placeholder="🔍 Etsi..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{marginBottom:'10px'}} />
+                <div className="form-row" style={{marginBottom:'10px'}}>
+                    <div>
+                        <label>Kuukausi</label>
+                        <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)}>
+                            <option value="">-- Kaikki --</option>
+                            {months.map(m => (<option key={m} value={m}>{m}</option>))}
+                        </select>
+                    </div>
+                    <div>
+                        <label>Asiakas</label>
+                        <select value={filterCustomer} onChange={e => setFilterCustomer(e.target.value)}>
+                            <option value="">-- Kaikki --</option>
+                            {customersInEntries.map(c => (<option key={c} value={c}>{c}</option>))}
+                        </select>
+                    </div>
+                    <div>
+                        <label>Tehtävä</label>
+                        <select value={filterTask} onChange={e => setFilterTask(e.target.value)}>
+                            <option value="">-- Kaikki --</option>
+                            {tasksInEntries.map(t => (<option key={t} value={t}>{t}</option>))}
+                        </select>
+                    </div>
+                </div>
+                <input placeholder="🔍 Etsi (asiakas / kohde / tehtävä / selite)..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{marginBottom:'10px'}} />
+                <div style={{display:'flex', gap:'10px', flexWrap:'wrap', marginBottom:'10px'}}>
+                    <button
+                        className="back-btn"
+                        onClick={() => {
+                            setFilterMonth('');
+                            setFilterCustomer('');
+                            setFilterTask('');
+                            setSearchTerm('');
+                        }}
+                        style={{color:'#ff5252', borderColor:'#ff5252'}}
+                    >
+                        Tyhjennä suodattimet
+                    </button>
+                </div>
                 <p style={{fontSize:'0.9em', color:'#aaa'}}>Yhteensä: {filteredEntries.length} kirjausta</p>
             </div>
             <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>

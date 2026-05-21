@@ -7,6 +7,13 @@ const InstructionsView = ({ onBack }) => {
     // VERSIOHISTORIA - Uusin aina ensin
     const versions = [
         {
+            version: "2.4",
+            date: "21.05.2026",
+            changes: [
+                "Työhistoria: Selaa & muokkaa kirjauksia -näkymään lisätty tarkemmat suodattimet (kuukausi, asiakas, tehtävä) sekä laajennettu hakukenttä (asiakas/kohde/tehtävä/selite)."
+            ]
+        },
+        {
             version: "2.3",
             date: "17.05.2026",
             changes: [
@@ -187,7 +194,7 @@ const InstructionsView = ({ onBack }) => {
                     <li><b>Massakirjaus (Checkbox):</b> Näet listan vain niistä kohteista, joilla on kyseinen työ sopimuksessaan. Valitse tehdyt kohteet ja paina "Tallenna valinnat".</li>
                     <li><b>Määräperusteinen (kg):</b> Esimerkiksi hiekoituksessa syötetään käytetty määrä kiloina suoraan kohteen kohdalle.</li>
                     <li><b>Täsmäkirjaus (Lisätyöt & Liitetyöt):</b> Jos työtä ei ole vakiosopimuksessa, valitse asiakas ja kohde, kirjoita selite ja määrittele hinta (Työ ja Tarvikkeet erikseen ALV 0%).</li>
-                    <li><b>Selaa & Muokkaa:</b> Alareunan painikkeesta pääset näkemään omat kirjauksesi ("Selaa & Muokkaa kirjauksia"). Voit korjata virheitä tai poistaa turhia kirjauksia niin kauan kuin niitä ei ole vielä laskutettu.</li>
+                    <li><b>Selaa & Muokkaa:</b> Alareunan painikkeesta pääset näkemään omat kirjauksesi ("Selaa & Muokkaa kirjauksia"). Voit korjata virheitä tai poistaa turhia kirjauksia niin kauan kuin niitä ei ole vielä laskutettu. Näkymässä voi suodattaa kirjauksia kuukauden, asiakkaan ja tehtävän mukaan sekä hakea tekstillä (asiakas/kohde/tehtävä/selite).</li>
                     <li><b>Työhistoria:</b> Toimistossa "Työhistoria"-näkymässä voit muokata kirjausta myös jälkikäteen. Tarvittaessa voit vaihtaa myös asiakkaan ja kohteen, jos kirjaus on mennyt väärin.</li>
                 </ul>
 
