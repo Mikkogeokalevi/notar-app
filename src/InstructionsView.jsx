@@ -7,6 +7,13 @@ const InstructionsView = ({ onBack }) => {
     // VERSIOHISTORIA - Uusin aina ensin
     const versions = [
         {
+            version: "2.5",
+            date: "21.05.2026",
+            changes: [
+                "Työt: Täsmäkirjauksessa (lisä- ja liitetyöt) asiakas ja kohde jäävät nyt valituksi tallennuksen jälkeen, jotta voit tehdä useita kirjauksia peräkkäin. Päivämäärän vieressä on nappi 'Nollaa valinnat'."
+            ]
+        },
+        {
             version: "2.4",
             date: "21.05.2026",
             changes: [
@@ -193,7 +200,8 @@ const InstructionsView = ({ onBack }) => {
                     <li><b>Työtehtävän valinta:</b> Valitse suoritettu työ (esim. Auraus tai Hiekoitus). Tehtävät näkyvät omina värillisinä painikkeinaan.</li>
                     <li><b>Massakirjaus (Checkbox):</b> Näet listan vain niistä kohteista, joilla on kyseinen työ sopimuksessaan. Valitse tehdyt kohteet ja paina "Tallenna valinnat".</li>
                     <li><b>Määräperusteinen (kg):</b> Esimerkiksi hiekoituksessa syötetään käytetty määrä kiloina suoraan kohteen kohdalle.</li>
-                    <li><b>Täsmäkirjaus (Lisätyöt & Liitetyöt):</b> Jos työtä ei ole vakiosopimuksessa, valitse asiakas ja kohde, kirjoita selite ja määrittele hinta (Työ ja Tarvikkeet erikseen ALV 0%).</li>
+                    <li><b>Täsmäkirjaus (Lisätyöt & Liitetyöt):</b> Jos työtä ei ole vakiosopimuksessa, valitse asiakas ja kohde, kirjoita selite ja määrittele hinta (Työ ja Tarvikkeet erikseen ALV 0%). Tallennuksen jälkeen asiakas ja kohde pysyvät valittuna, jotta voit tehdä useita kirjauksia peräkkäin samalle kohteelle.</li>
+                    <li><b>Nollaa valinnat:</b> Tehtävänäkymässä päivämäärän vieressä on nappi "Nollaa valinnat", jolla saat tyhjennettyä asiakas/kohde/selite/hinnat ja aloittaa uuden kohteen kirjaukset nopeasti.</li>
                     <li><b>Selaa & Muokkaa:</b> Alareunan painikkeesta pääset näkemään omat kirjauksesi ("Selaa & Muokkaa kirjauksia"). Voit korjata virheitä tai poistaa turhia kirjauksia niin kauan kuin niitä ei ole vielä laskutettu. Näkymässä voi suodattaa kirjauksia kuukauden, asiakkaan ja tehtävän mukaan sekä hakea tekstillä (asiakas/kohde/tehtävä/selite).</li>
                     <li><b>Työhistoria:</b> Toimistossa "Työhistoria"-näkymässä voit muokata kirjausta myös jälkikäteen. Tarvittaessa voit vaihtaa myös asiakkaan ja kohteen, jos kirjaus on mennyt väärin.</li>
                 </ul>

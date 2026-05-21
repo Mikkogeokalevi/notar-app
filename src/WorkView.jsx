@@ -149,6 +149,16 @@ const WorkView = ({ availableTasks, onOpenLog, showNotification }) => {
     // --- TALLENNUS: MASSATYÖ ---
     const toggleValinta = (id) => setValinnat(prev => ({ ...prev, [id]: !prev[id] }));
 
+    const nollaaValinnat = () => {
+        setValittuAsiakasId('');
+        setValittuKohdeId('');
+        setSelite('');
+        setHinta1('');
+        setHinta2('');
+        setValinnat({});
+        setActiveTab('kaikki');
+    };
+
     const tallennaKirjaukset = async () => {
         const valitutIDt = Object.keys(valinnat).filter(id => valinnat[id]);
         if (valitutIDt.length === 0) return alert("Ei valittuja kohteita.");
@@ -236,7 +246,9 @@ const WorkView = ({ availableTasks, onOpenLog, showNotification }) => {
 
             await addDoc(collection(db, "work_entries"), data);
             if(showNotification) showNotification("Kirjaus tallennettu! ✅", "success");
-            setValittuTehtava(null);
+            setSelite('');
+            setHinta1('');
+            setHinta2('');
         } catch(e) {
             console.error(e);
             if(showNotification) showNotification("Virhe: " + e.message, "error");
@@ -288,7 +300,12 @@ const WorkView = ({ availableTasks, onOpenLog, showNotification }) => {
             
             <div style={{marginTop:'15px', marginBottom:'15px'}}>
                 <label style={{display:'block', marginBottom:'5px', color:'#aaa'}}>Päivämäärä:</label>
-                <input type="date" value={pvm} onChange={(e) => setPvm(e.target.value)} style={{padding:'10px', width:'100%', maxWidth:'200px', background:'#333', color:'white', border:'1px solid #555', borderRadius:'4px'}} />
+                <div style={{display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap'}}>
+                    <input type="date" value={pvm} onChange={(e) => setPvm(e.target.value)} style={{padding:'10px', width:'100%', maxWidth:'200px', background:'#333', color:'white', border:'1px solid #555', borderRadius:'4px'}} />
+                    <button onClick={nollaaValinnat} className="back-btn" style={{color:'#ff5252', borderColor:'#ff5252'}}>
+                        Nollaa valinnat
+                    </button>
+                </div>
             </div>
 
             {/* --- HAARAUTUMINEN: MASSA VAI TÄSMÄ --- */}
