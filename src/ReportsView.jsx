@@ -20,6 +20,8 @@ const ReportsView = ({ onBack }) => {
     const [dateRange, setDateRange] = useState({ start: '', end: '' });
     const [includeDrafts, setIncludeDrafts] = useState(false);
 
+    const [invoiceListSort, setInvoiceListSort] = useState({ key: 'date', dir: 'desc' });
+
     useEffect(() => {
         calculateReports();
     }, []);
@@ -198,7 +200,44 @@ const ReportsView = ({ onBack }) => {
         if (dateRange.start && inv.date < dateRange.start) return false;
         if (dateRange.end && inv.date > dateRange.end) return false;
         return true;
-    }).sort((a, b) => (a.date < b.date ? 1 : -1));
+    });
+
+    const sortedInvoices = [...filteredInvoices].sort((a, b) => {
+        const { key, dir } = invoiceListSort;
+        const mul = dir === 'asc' ? 1 : -1;
+
+        const aInvNo = parseInt(a.invoice_number || '', 10);
+        const bInvNo = parseInt(b.invoice_number || '', 10);
+        const aGross = parseFloat(a.total_sum || 0) || 0;
+        const bGross = parseFloat(b.total_sum || 0) || 0;
+
+        if (key === 'invoice_number') {
+            const aOk = Number.isFinite(aInvNo);
+            const bOk = Number.isFinite(bInvNo);
+            if (aOk && bOk) return (aInvNo - bInvNo) * mul;
+            if (aOk && !bOk) return -1 * mul;
+            if (!aOk && bOk) return 1 * mul;
+            return String(a.invoice_number || a.id || '').localeCompare(String(b.invoice_number || b.id || ''), 'fi') * mul;
+        }
+
+        if (key === 'customer_name') {
+            return String(a.customer_name || '').localeCompare(String(b.customer_name || ''), 'fi') * mul;
+        }
+
+        if (key === 'total_sum') {
+            return (aGross - bGross) * mul;
+        }
+
+        if (key === 'due_date') {
+            return String(a.due_date || '').localeCompare(String(b.due_date || ''), 'fi') * mul;
+        }
+
+        if (key === 'status') {
+            return String(a.status || '').localeCompare(String(b.status || ''), 'fi') * mul;
+        }
+
+        return String(a.date || '').localeCompare(String(b.date || ''), 'fi') * mul;
+    });
 
     const getTotalsForInvoices = (list) => {
         const multiplier = getVatMultiplier();
@@ -222,7 +261,7 @@ const ReportsView = ({ onBack }) => {
         const headers = [
             'Lasku nro', 'Päiväys', 'Eräpäivä', 'Asiakas', 'Y-tunnus', 'Tila', 'Tyyppi', 'Veroton', `ALV ${(multiplier - 1) * 100}%`, 'Yhteensä', 'Kuukausi'
         ];
-        const rows = filteredInvoices.map(inv => {
+        const rows = sortedInvoices.map(inv => {
             const gross = parseFloat(inv.total_sum || 0) || 0;
             const net = gross / multiplier;
             const vat = gross - net;
@@ -248,7 +287,7 @@ const ReportsView = ({ onBack }) => {
         const title = 'Laskuluettelo';
         const rangeTxt = `${dateRange.start || '---'} – ${dateRange.end || '---'}`;
 
-        const rowsHtml = filteredInvoices.map(inv => {
+        const rowsHtml = sortedInvoices.map(inv => {
             const gross = parseFloat(inv.total_sum || 0) || 0;
             const net = gross / multiplier;
             const vat = gross - net;
@@ -438,12 +477,57 @@ const ReportsView = ({ onBack }) => {
                     <div className="card-box" style={{background:'#1b1b1b', border:'1px solid #333'}}>
                         <h4 style={{marginTop: 0}}>1) Laskuluettelo</h4>
                         <div style={{color:'#aaa', fontSize:'0.9rem'}}>Rivi per lasku. Soveltuu kirjanpitäjälle ja Exceliin.</div>
+                        <div style={{display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'center', marginTop:'10px'}}>
+                            <div style={{color:'#aaa', fontSize:'0.85rem'}}>Lajittelu:</div>
+                            <select value={invoiceListSort.key} onChange={e => setInvoiceListSort(s => ({ ...s, key: e.target.value }))}>
+                                <option value="date">Päiväys</option>
+                                <option value="invoice_number">Lasku nro</option>
+                                <option value="customer_name">Asiakas</option>
+                                <option value="due_date">Eräpäivä</option>
+                                <option value="status">Tila</option>
+                                <option value="total_sum">Yhteensä</option>
+                            </select>
+                            <button className="back-btn" onClick={() => setInvoiceListSort(s => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' }))}>
+                                {invoiceListSort.dir === 'asc' ? 'Nouseva' : 'Laskeva'}
+                            </button>
+                        </div>
                         <div style={{display:'flex', gap:'10px', flexWrap:'wrap', marginTop:'10px'}}>
                             <button onClick={exportInvoiceListCsv} className="save-btn" style={{background:'#2e7d32'}}>📥 CSV</button>
                             <button onClick={printInvoiceList} className="back-btn">🖨️ Tulosta / PDF</button>
                         </div>
                         <div style={{marginTop:'10px', color:'#666', fontSize:'0.85rem'}}>Laskuja valitulla aikavälillä: {filteredInvoices.length} kpl</div>
                     </div>
+
+                    {sortedInvoices.length > 0 && (
+                        <div className="card-box" style={{background:'#1b1b1b', border:'1px solid #333'}}>
+                            <div style={{overflowX:'auto'}}>
+                                <table style={{width:'100%', borderCollapse:'collapse', fontSize:'0.9rem'}}>
+                                    <thead>
+                                        <tr style={{borderBottom:'1px solid #444', color:'#aaa', textAlign:'left'}}>
+                                            <th style={{padding:'8px'}}>Lasku nro</th>
+                                            <th style={{padding:'8px'}}>Päiväys</th>
+                                            <th style={{padding:'8px'}}>Eräpäivä</th>
+                                            <th style={{padding:'8px'}}>Asiakas</th>
+                                            <th style={{padding:'8px'}}>Tila</th>
+                                            <th style={{padding:'8px', textAlign:'right'}}>Yhteensä</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {sortedInvoices.map(inv => (
+                                            <tr key={inv.id} style={{borderBottom:'1px solid #2c2c2c'}}>
+                                                <td style={{padding:'8px'}}>{inv.invoice_number || inv.id}</td>
+                                                <td style={{padding:'8px'}}>{inv.date || ''}</td>
+                                                <td style={{padding:'8px'}}>{inv.due_date || ''}</td>
+                                                <td style={{padding:'8px'}}>{inv.customer_name || ''}</td>
+                                                <td style={{padding:'8px'}}>{inv.status || ''}</td>
+                                                <td style={{padding:'8px', textAlign:'right'}}>{toMoney(parseFloat(inv.total_sum || 0) || 0)} €</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="card-box" style={{background:'#1b1b1b', border:'1px solid #333'}}>
                         <h4 style={{marginTop: 0}}>2) Myyntiraportti (ALV-erittely)</h4>
