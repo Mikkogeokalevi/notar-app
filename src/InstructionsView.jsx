@@ -7,6 +7,14 @@ const InstructionsView = ({ onBack }) => {
     // VERSIOHISTORIA - Uusin aina ensin
     const versions = [
         {
+            version: "2.6",
+            date: "23.05.2026",
+            changes: [
+                "Laskutus: Esikatselussa näkyy nyt ‘Seuraava laskun nro’ (ja ryhmäajossa myös arvioitu numeroväli valituille laskuille). Sama tieto näkyy myös pikalaskussa.",
+                "Raportit: Laskuluetteloon lisätty lajittelu (päiväys / lasku nro / asiakas / eräpäivä / tila / yhteensä + nouseva/laskeva) sekä esikatselutaulukko. CSV ja Tulosta/PDF noudattavat samaa järjestystä."
+            ]
+        },
+        {
             version: "2.5",
             date: "21.05.2026",
             changes: [
@@ -231,6 +239,7 @@ const InstructionsView = ({ onBack }) => {
                         <br />- 🗑️ <b>Poista luonnos:</b> Voit poistaa luonnoksen listalta. Työt eivät katoa tietokannasta, vaan ne jäävät odottamaan seuraavaa laskutuskertaa.
                     </li>
                     <li><b>Haku:</b> Luonnoslistan hakukentällä voit suodattaa luonnoksia kirjoittamalla osan asiakasnimestä tai otsikosta.</li>
+                    <li><b>Seuraava laskun numero:</b> Esikatselussa näkyy "Seuraava laskun nro", jotta tiedät mikä numero tulee seuraavaksi, ennen kuin luot laskun (myös ryhmäajossa näkyy arvioitu numeroväli valituille).</li>
                     <li><b>Laskun otsikkoteksti:</b> Laskuluonnokset perivät otsikkotekstin ja tulostusvalinnan asiakaskortilta. Otsikko näkyy tulostuksessa vain, jos se on asetettu ja valinta on päällä.</li>
                     <li><b>Päiväys per lasku:</b> Luonnoskortilta voi tarvittaessa vaihtaa yksittäisen laskun päiväyksen (eräpäivä päivittyy maksuehdon mukaan).</li>
                     <li><b>Oletuspäiväys:</b> Voit asettaa laskujen oletuspäiväyksen ennen luonnosten luontia (sovellus käyttää sitä kaikille luonnoksille, kunnes vaihdat yksittäisen).</li>
@@ -259,7 +268,7 @@ const InstructionsView = ({ onBack }) => {
                     <li><b>Kirjanpidon raportit:</b> Raportit-näkymän yläosassa on kirjanpitäjälle sopivia raportteja, jotka voi ladata CSV-tiedostona tai tulostaa/PDF:ksi.</li>
                     <li><b>Aikaväli:</b> Valitse alku- ja loppupäivä (laskun päiväys) ennen vientiä, jotta raportti vastaa esimerkiksi kuukauden tai tilikauden tietoja. Aikavälin voi asettaa myös pikapainikkeilla (Tämä kuu / Edellinen / 3 kk / Vuosi).</li>
                     <li><b>Avoimet / luonnokset:</b> Voit valita sisällytetäänkö avoimet/laskuluonnokset raportteihin. Oletuksena mukaan lasketaan vain “virallisemmat” laskut (ei avoimia).</li>
-                    <li><b>Laskuluettelo:</b> Yksi rivi per lasku (päiväys, eräpäivä, asiakas, tila, veroton/ALV/yhteensä). Sopii suoraan kirjanpitäjälle.</li>
+                    <li><b>Laskuluettelo:</b> Yksi rivi per lasku (päiväys, eräpäivä, asiakas, tila, veroton/ALV/yhteensä). Listan voi lajitella (esim. laskunumero- tai asiakasjärjestykseen) ja CSV / Tulosta/PDF seuraavat samaa järjestystä.</li>
                     <li><b>Myyntiraportti (ALV-erittely):</b> Yhteenveto verottomasta myynnistä, ALV:sta ja verollisesta myynnistä valitulla aikavälillä.</li>
                     <li><b>Myyntisaamiset:</b> Avoimet ja myöhässä olevat laskut (tilassa Lähetetty) eräpäivineen.</li>
                     <li><b>Kokonaislaskutus:</b> Näet heti suuren luvun, joka kertoo koko historian aikana laskutetun summan (sis. ALV). Tämä antaa nopean kokonaiskuvan.</li>

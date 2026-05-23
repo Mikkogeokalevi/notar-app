@@ -20,6 +20,8 @@ const ALLOWED_EMAILS = [
     'tapio.sarajarvi@phnet.fi' 
 ];
 
+const APP_VERSION = '2.6';
+
 // --- APUKOMPONENTIT ---
 
 const Notification = ({ msg, type }) => {
@@ -163,6 +165,9 @@ const InfoBar = ({ currentView, setCurrentView }) => {
             <div className="info-center">
                 <button className={`nav-btn ${currentView === 'tyot' || currentView === 'log' ? 'active' : ''}`} onClick={() => setCurrentView('tyot')}>👷 Työt</button>
                 <button className={`nav-btn ${currentView !== 'tyot' && currentView !== 'log' ? 'active' : ''}`} onClick={() => setCurrentView('admin')}>🏢 Toimisto</button>
+                <div style={{fontSize:'0.75rem', color:'#888', marginLeft:'10px', alignSelf:'center'}}>
+                    v{APP_VERSION}
+                </div>
             </div>
             <div className="info-right">
                 <div className="time-box">
