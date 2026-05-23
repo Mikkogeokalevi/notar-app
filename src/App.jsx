@@ -165,9 +165,24 @@ const InfoBar = ({ currentView, setCurrentView }) => {
             <div className="info-center">
                 <button className={`nav-btn ${currentView === 'tyot' || currentView === 'log' ? 'active' : ''}`} onClick={() => setCurrentView('tyot')}>👷 Työt</button>
                 <button className={`nav-btn ${currentView !== 'tyot' && currentView !== 'log' ? 'active' : ''}`} onClick={() => setCurrentView('admin')}>🏢 Toimisto</button>
-                <div style={{fontSize:'0.75rem', color:'#888', marginLeft:'10px', alignSelf:'center'}}>
+                <button
+                    type="button"
+                    onClick={() => setCurrentView('instructions')}
+                    style={{
+                        fontSize:'0.75rem',
+                        color:'#888',
+                        marginLeft:'10px',
+                        alignSelf:'center',
+                        background:'transparent',
+                        border:'none',
+                        padding: 0,
+                        cursor:'pointer',
+                        textDecoration:'underline'
+                    }}
+                    title="Avaa ohje ja versiohistoria"
+                >
                     v{APP_VERSION}
-                </div>
+                </button>
             </div>
             <div className="info-right">
                 <div className="time-box">
