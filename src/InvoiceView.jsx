@@ -11,6 +11,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
     const [loading, setLoading] = useState(false);
     const [tasksDef, setTasksDef] = useState([]); 
     const [companyInfo, setCompanyInfo] = useState({});
+    const [invoiceStartNumber, setInvoiceStartNumber] = useState(null);
 
     const [invoiceSearchText, setInvoiceSearchText] = useState('');
     const [batchInvoiceDate, setBatchInvoiceDate] = useState(formatDateLocal(new Date()));
@@ -90,6 +91,10 @@ const InvoiceView = ({ onBack, showNotification }) => {
             if (settingsSnap.exists()) {
                 setTasksDef(settingsSnap.data().tasks || []);
                 setCompanyInfo(settingsSnap.data()); 
+                if (settingsSnap.data().invoice_start_number) {
+                    const n = parseInt(settingsSnap.data().invoice_start_number, 10);
+                    setInvoiceStartNumber(Number.isFinite(n) ? n : null);
+                }
             }
         };
         fetchSettings();
@@ -266,6 +271,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
             });
 
             await updateDoc(settingsRef, { invoice_start_number: (currentInvoiceNum + 1).toString() });
+            setInvoiceStartNumber(currentInvoiceNum + 1);
 
             showNotification("Pikalasku luotu ja arkistoitu! ✅", "success");
             setShowQuickModal(false);
@@ -551,6 +557,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
             }
             batch.update(settingsRef, { invoice_start_number: currentInvoiceNum.toString() });
             await batch.commit();
+            setInvoiceStartNumber(currentInvoiceNum);
             showNotification(`${toApproveList.length} laskua luotu! ✅`, "success");
             setInvoices(prev => prev.filter(inv => !approvedIds.has(inv.id)));
             setSelectedForApproval(prev => { const next = new Set(prev); approvedIds.forEach(id => next.delete(id)); return next; });
@@ -581,6 +588,7 @@ const InvoiceView = ({ onBack, showNotification }) => {
             }
             batch.update(settingsRef, { invoice_start_number: (currentInvoiceNum + 1).toString() });
             await batch.commit();
+            setInvoiceStartNumber(currentInvoiceNum + 1);
             showNotification("Lasku luotu! ✅", "success");
             setInvoices(prev => prev.filter(inv => inv.id !== invoice.id));
             setSelectedForApproval(prev => { const next = new Set(prev); next.delete(invoice.id); return next; });
@@ -796,6 +804,9 @@ const InvoiceView = ({ onBack, showNotification }) => {
     };
 
     const totalBilledNet = invoices.reduce((sum, inv) => sum + inv.totalSum, 0);
+    const nextInvoiceNumber = Number.isFinite(invoiceStartNumber)
+        ? invoiceStartNumber
+        : (Number.isFinite(parseInt(companyInfo.invoice_start_number, 10)) ? parseInt(companyInfo.invoice_start_number, 10) : null);
 
     return (
         <div className="admin-section">
@@ -845,6 +856,14 @@ const InvoiceView = ({ onBack, showNotification }) => {
                             onChange={(e) => setInvoiceSearchText(e.target.value)}
                             style={{flex:'1 1 240px', maxWidth:'360px', background:'#2c2c2c', border:'1px solid #444', color:'white', borderRadius:'6px', padding:'10px 12px'}}
                         />
+                        {nextInvoiceNumber !== null && (
+                            <div style={{color:'#aaa', fontSize:'0.85rem', marginRight:'6px'}}>
+                                Seuraava laskun nro: <strong style={{color:'#fff'}}>{nextInvoiceNumber}</strong>
+                                {toApproveList.length > 1 ? (
+                                    <span> (valitut: {nextInvoiceNumber}–{nextInvoiceNumber + toApproveList.length - 1})</span>
+                                ) : null}
+                            </div>
+                        )}
                         <label style={{display:'flex', alignItems:'center', gap:'8px', cursor:'pointer'}}>
                             <input type="checkbox" className="big-checkbox" checked={displayedInvoices.length > 0 && displayedInvoices.every(i => selectedForApproval.has(i.id))} onChange={e => setSelectedForApproval(prev => {
                                 const next = new Set(prev);
@@ -927,6 +946,11 @@ const InvoiceView = ({ onBack, showNotification }) => {
                     <div className="modal-content" style={{maxWidth: '800px'}}>
                         <h3>Uusi Lasku (Manuaalinen)</h3>
                         <p style={{fontSize:'0.9rem', color:'#aaa', marginBottom:'15px'}}>Uusi asiakas tallentuu automaattisesti rekisteriin.</p>
+                        {nextInvoiceNumber !== null && (
+                            <div style={{fontSize:'0.9rem', color:'#bbb', marginBottom:'15px'}}>
+                                Seuraava laskun nro: <strong style={{color:'#fff'}}>{nextInvoiceNumber}</strong>
+                            </div>
+                        )}
                         
                         <div className="form-group">
                             <label>Valitse asiakas (tai kirjoita uusi nimi)</label>
