@@ -404,6 +404,23 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
         return matchText && matchCustomer && matchDate;
     });
 
+    const sortedFilteredInvoices = [...filteredInvoices].sort((a, b) => {
+        const aNum = parseInt(String(a.invoice_number || '').replace(/\D/g, ''), 10);
+        const bNum = parseInt(String(b.invoice_number || '').replace(/\D/g, ''), 10);
+        const aOk = Number.isFinite(aNum);
+        const bOk = Number.isFinite(bNum);
+
+        if (aOk && bOk) return bNum - aNum;
+        if (aOk && !bOk) return -1;
+        if (!aOk && bOk) return 1;
+
+        const aCreated = a.created_at?.seconds || 0;
+        const bCreated = b.created_at?.seconds || 0;
+        if (aCreated !== bCreated) return bCreated - aCreated;
+
+        return String(b.date || '').localeCompare(String(a.date || ''), 'fi');
+    });
+
     // --- LASKENTA MODAALIIN ---
     const getEditingTotals = () => {
         if (!editingInvoice) return { net: 0, vat: 0, gross: 0 };
@@ -444,7 +461,7 @@ const InvoiceArchive = ({ onBack, showNotification, requestConfirm }) => {
 
             <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
                 {loading && <p style={{textAlign:'center', color:'#aaa'}}>Ladataan laskuja...</p>}
-                {filteredInvoices.map(inv => (
+                {sortedFilteredInvoices.map(inv => (
                     <div key={inv.id} className="card-box" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding:'10px 15px', opacity: inv.status === 'cancelled' ? 0.6 : 1}}>
                         <div style={{flex: 1}}>
                             <div style={{display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap'}}>
