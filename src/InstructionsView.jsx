@@ -7,6 +7,13 @@ const InstructionsView = ({ onBack }) => {
     // VERSIOHISTORIA - Uusin aina ensin
     const versions = [
         {
+            version: "2.7",
+            date: "06.06.2026",
+            changes: [
+                "Laskuarkisto: Laskut näkyvät nyt oletuksena laskun numeron mukaan (uusin / isoin numero ylimpänä)."
+            ]
+        },
+        {
             version: "2.6",
             date: "23.05.2026",
             changes: [

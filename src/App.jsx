@@ -20,7 +20,7 @@ const ALLOWED_EMAILS = [
     'tapio.sarajarvi@phnet.fi' 
 ];
 
-const APP_VERSION = '2.6';
+const APP_VERSION = '2.7';
 
 // --- APUKOMPONENTIT ---
 
